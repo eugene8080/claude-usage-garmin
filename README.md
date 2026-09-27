@@ -15,13 +15,13 @@ Keeps your `5H`, `1W` and `1W Fable` percentages (plus *“resets in”* countdo
 
 <br />
 
-### [![Download APK](https://img.shields.io/badge/⬇%20Download%20APK-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/eugene8080/claude-usage-widget/releases/latest/download/claude-usage-widget.apk)
+### [![Download APK](https://img.shields.io/badge/⬇%20Download%20APK-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/eugene8080/claude-usage-garmin/releases/latest/download/claude-usage-widget.apk)
 
 Sign in once on the phone; the widget refreshes itself in the background.
 
 <sub>The button serves the latest tagged release. Every push is also built by CI —
 grab `app-debug.apk` from the newest run under
-**[Actions](https://github.com/eugene8080/claude-usage-widget/actions)** to install a
+**[Actions](https://github.com/eugene8080/claude-usage-garmin/actions)** to install a
 change that hasn't been tagged yet.</sub>
 
 </div>
@@ -30,7 +30,7 @@ change that hasn't been tagged yet.</sub>
 
 ## 📲 Install in 3 steps
 
-1. **[Download the APK](https://github.com/eugene8080/claude-usage-widget/releases/latest/download/claude-usage-widget.apk)** on your Android phone (tap the button above).
+1. **[Download the APK](https://github.com/eugene8080/claude-usage-garmin/releases/latest/download/claude-usage-widget.apk)** on your Android phone (tap the button above).
 2. **Open the downloaded file** and tap **Install**.
 3. The first time, Android asks to **allow installs from this source** (your browser or file app). Tap **Settings → enable “Allow from this source” → back → Install**. If Play Protect shows an *“unsafe app?”* prompt, that warning appears for any app not installed from the Play Store; choose **Install anyway**.
 
@@ -162,7 +162,7 @@ is built into the face.
 
 ### Install on the watch
 
-Download the `.prg` for your watch from the [latest release](https://github.com/eugene8080/claude-usage-widget/releases/latest)
+Download the `.prg` for your watch from the [latest release](https://github.com/eugene8080/claude-usage-garmin/releases/latest)
 (`ClaudeUsage-*` is the watch app, `ClaudeGrid-*` / `ClaudeFace-*` the two faces; `fenix847mm` is the
 fēnix 8 / tactix 8 47 & 51 mm) or build one (below). Connect the watch by USB with its screen
 **awake and unlocked** and drag the file into **`GARMIN/Apps`**. Install the watch app and whichever
@@ -233,7 +233,7 @@ sdk.dir=/path/to/your/Android/Sdk
 **2. Build the debug APK:**
 
 You can skip all of this by letting CI do it — push a branch and download `app-debug.apk`
-from the run under [Actions](https://github.com/eugene8080/claude-usage-widget/actions).
+from the run under [Actions](https://github.com/eugene8080/claude-usage-garmin/actions).
 To build locally:
 
 ```bash

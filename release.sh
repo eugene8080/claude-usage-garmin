@@ -69,4 +69,4 @@ gh release create "$TAG" "$ASSET_NAME" \
     --generate-notes
 rm -f "$ASSET_NAME"
 
-echo "==> Done. https://github.com/eugene8080/claude-usage-widget/releases/tag/${TAG}"
+echo "==> Done. https://github.com/eugene8080/claude-usage-garmin/releases/tag/${TAG}"
