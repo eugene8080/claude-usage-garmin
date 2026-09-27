@@ -94,6 +94,21 @@ to the **Claude Usage** watch app, which publishes them as complications every 5
 face can't receive phone pushes itself, so both faces **subscribe to those complications** — which
 is why the watch app must be installed (and opened once) for the faces to show Claude usage.
 
+### Claude Usage (the glance)
+
+<p align="center">
+<img src="docs/glance.png" alt="The Claude Usage glance on a tactix 8, showing 5H, 1W and 1W Fable meters with their reset times" width="360" />
+</p>
+
+- The three meters as a **glance** — a swipe away from any watch face, no app to open — each
+  with its progress bar and reset time (a clock time for the 5-hour window, a weekday or
+  date for the weekly caps).
+- Doubles as the **publisher**: opening it once (after install, or after a sideload) registers
+  the background service that republishes the phone's numbers as watch complications every
+  ~5 minutes, which is what feeds Claude Grid's and Claude Terminal's meters.
+- The version number at the top of the glance confirms which build is on the watch — handy
+  since a sideload doesn't show up in Garmin Connect the way a store install does.
+
 ### Claude Grid
 
 - **Seven data fields you set on the watch** with Garmin's own face editor (hold the face →

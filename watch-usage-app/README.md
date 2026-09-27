@@ -6,6 +6,10 @@ resets, as a wall-clock time the way the Claude usage menu states it - a clock t
 5-hour session (`9:27p`), a weekday for the weekly caps (`Tue`), or a month/day once a reset
 is more than a week out (`Sep 22`). Honours the watch's 12/24-hour setting.
 
+<p align="center">
+<img src="../docs/glance.png" alt="The Claude Usage glance on a tactix 8" width="320" />
+</p>
+
 Generated: 2026-09-17
 
 ## The watch never talks to Claude
