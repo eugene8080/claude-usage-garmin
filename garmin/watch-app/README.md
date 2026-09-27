@@ -7,7 +7,7 @@ resets, as a wall-clock time the way the Claude usage menu states it - a clock t
 is more than a week out (`Sep 22`). Honours the watch's 12/24-hour setting.
 
 <p align="center">
-<img src="../docs/glance.png" alt="The Claude Usage glance on a tactix 8" width="320" />
+<img src="../../docs/glance.png" alt="The Claude Usage glance on a tactix 8" width="320" />
 </p>
 
 Generated: 2026-09-17
