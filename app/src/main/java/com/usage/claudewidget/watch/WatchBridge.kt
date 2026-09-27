@@ -27,8 +27,12 @@ import kotlin.coroutines.resume
  * Pushes the usage snapshot to the Garmin watch app over BLE, via Garmin Connect Mobile.
  *
  * This is the only thing that ever reaches the watch. The watch app holds no credentials and
- * makes no web requests - see watch-usage-app/README.md for why that is not negotiable - so
+ * makes no web requests - see garmin/watch-app/README.md for why that is not negotiable - so
  * if this push does not happen, the watch goes stale.
+ *
+ * The app id and the message keys are one side of a contract with the watch app, written down
+ * in garmin/CONTRACT.md and checked in CI by garmin/tools/check_contract.py: change either here
+ * and the watch side (and that file) must change in the same commit.
  *
  * Every failure here is swallowed and logged. A watch that is out of range, a Garmin Connect
  * Mobile that is not installed, a watch app that was never sideloaded: none of those are
@@ -37,7 +41,7 @@ import kotlin.coroutines.resume
  */
 object WatchBridge {
 
-    /** Must match `id` in watch-usage-app/manifest.xml; the watch app is addressed by this. */
+    /** Must match `id` in garmin/watch-app/manifest.xml; the watch app is addressed by this (garmin/CONTRACT.md). */
     private const val WATCH_APP_ID = "8a5bd20e02f34f58afb5f357a23a4a65"
 
     private const val TAG = "ClaudeWatch"
@@ -211,7 +215,8 @@ object WatchBridge {
     /**
      * The payload the watch's Snapshot.store() expects. Keys are terse because a Connect IQ
      * message is small and this crosses a BLE link; they are mirrored verbatim in
-     * watch-usage-app/source/Snapshot.mc.
+     * garmin/watch-app/source/Snapshot.mc, and listed in garmin/CONTRACT.md. The checker there
+     * also enforces the shape below: the per-model keys only inside the null-guard.
      *
      * Percentages are rounded to whole numbers here rather than on the watch: the watch
      * renders what it is given, and this keeps the phone as the single place that decides

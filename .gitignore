@@ -14,16 +14,19 @@ app/build/
 *.keystore
 *.jks
 
-# Connect IQ build output
-watch-usage-app/build/
-watch-usage-app/dist/
+# Connect IQ build output - every project under garmin/ (watch app and faces)
+garmin/**/build/
+garmin/**/dist/
 
-# Connect IQ watch face build output
-watchface-terminal/build/
-watchface-terminal/dist/
-
-watchface-grid/build/
-watchface-grid/dist/
+# Pre-2026-09-27 locations of the same folders. A checkout from before the move to garmin/ keeps
+# its (ignored, so untracked) build/ and dist/ at these paths after pulling; these lines stop
+# them surfacing as untracked files until they are moved or deleted.
+/watch-usage-app/build/
+/watch-usage-app/dist/
+/watchface-grid/build/
+/watchface-grid/dist/
+/watchface-terminal/build/
+/watchface-terminal/dist/
 
 # Python tooling cache (font generators)
 __pycache__/

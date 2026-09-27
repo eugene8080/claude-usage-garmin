@@ -1,0 +1,32 @@
+name: Contract check
+
+# garmin/CONTRACT.md lists every value the Android app, the Connect IQ watch app
+# and the watch faces must agree on (the app id, the message keys, complication
+# ids and the label text the faces match on). No compiler sees across the three,
+# so garmin/tools/check_contract.py reads their source - and the tables in
+# CONTRACT.md - and fails on any mismatch.
+#
+# Deliberately NO path filter: a change on any of the three sides, or to the
+# document, can break it. It needs only the runner's stock Python (the script is
+# standard-library only) and finishes in seconds.
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: contract-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      # Mismatches are also emitted as error annotations on the file concerned.
+      - name: Check the phone / watch app / face contract
+        run: python3 garmin/tools/check_contract.py

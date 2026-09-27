@@ -1,0 +1,32 @@
+<complications>
+    <!--
+      Three publishable complications, one per meter, so a watchface can place any of them.
+      Public access: usable by any watchface, including Garmin's Face It. The numeric ids are
+      the handle updateComplication() writes to (see Complications.mc) and MUST stay stable
+      across versions - changing one silently breaks a face already configured to show it.
+
+      value/shortLabel/unit are set at runtime from the pushed snapshot; the ranges give a
+      watchface thresholds to colour a gauge by (0-50 low, 50-80 mid, 80-100 near-limit).
+      Ids and longLabels are the contract with the faces: garmin/CONTRACT.md.
+    -->
+    <complication id="0" access="public"
+        longLabel="@Strings.compFiveHourLong" shortLabel="@Strings.compFiveHourShort"
+        icon="@Drawables.ComplicationIcon">
+        <faceIt defaultText="@Strings.compFiveHourFace" />
+        <range><value>0</value><value>50</value><value>80</value><value>100</value></range>
+    </complication>
+
+    <complication id="1" access="public"
+        longLabel="@Strings.compWeeklyLong" shortLabel="@Strings.compWeeklyShort"
+        icon="@Drawables.ComplicationIcon">
+        <faceIt defaultText="@Strings.compWeeklyFace" />
+        <range><value>0</value><value>50</value><value>80</value><value>100</value></range>
+    </complication>
+
+    <complication id="2" access="public"
+        longLabel="@Strings.compModelLong" shortLabel="@Strings.compModelShort"
+        icon="@Drawables.ComplicationIcon">
+        <faceIt defaultText="@Strings.compModelFace" />
+        <range><value>0</value><value>50</value><value>80</value><value>100</value></range>
+    </complication>
+</complications>

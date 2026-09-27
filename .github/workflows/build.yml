@@ -1,14 +1,37 @@
 name: Build APK
 
-# Every push builds an installable APK and attaches it to the run, so the app
-# can be updated without an Android SDK on the machine doing the updating.
-# Pushing a v* tag also publishes that APK to Releases under a stable name,
-# which is what the README's download button points at.
+# Every push that touches the Android app builds an installable APK and attaches
+# it to the run, so the app can be updated without an Android SDK on the machine
+# doing the updating. Pushing a v* tag also publishes that APK to Releases under
+# a stable name, which is what the README's download button points at.
+#
+# The path filters skip commits that only touch garmin/ or docs (the Connect IQ
+# projects are built locally - the developer key never goes to CI). They do not
+# gate releases: GitHub does not evaluate path filters on tag pushes, so every
+# v* tag still builds and publishes, and "Run workflow" always runs. The
+# phone <-> watch contract is checked on every change by contract.yml instead.
+# (Listed twice because push and pull_request each need their own copy.)
 on:
   push:
     branches: [master]
     tags: ['v*']
+    paths:
+      - 'app/**'
+      - 'gradle/**'
+      - '*.gradle.kts'
+      - 'gradle.properties'
+      - 'gradlew'
+      - 'gradlew.bat'
+      - '.github/workflows/build.yml'
   pull_request:
+    paths:
+      - 'app/**'
+      - 'gradle/**'
+      - '*.gradle.kts'
+      - 'gradle.properties'
+      - 'gradlew'
+      - 'gradlew.bat'
+      - '.github/workflows/build.yml'
   workflow_dispatch:
     inputs:
       tag:

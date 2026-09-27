@@ -1,0 +1,21 @@
+<strings>
+    <string id="AppName">Claude Usage</string>
+
+    <!-- Complication labels. shortLabel is capped at 5 characters (radial display); the
+         model one is overwritten at runtime with the model's own name.
+         The *Long labels are an API: the faces find these complications by matching words in
+         them ("Claude", "5-hour", "weekly", "model"). Rewording one breaks installed faces -
+         see garmin/CONTRACT.md; garmin/tools/check_contract.py fails CI if a label stops
+         matching. -->
+    <string id="compFiveHourLong">Claude 5-hour usage</string>
+    <string id="compFiveHourShort">5H</string>
+    <string id="compFiveHourFace">Claude 5H</string>
+
+    <string id="compWeeklyLong">Claude weekly usage</string>
+    <string id="compWeeklyShort">1W</string>
+    <string id="compWeeklyFace">Claude 1W</string>
+
+    <string id="compModelLong">Claude model weekly usage</string>
+    <string id="compModelShort">Model</string>
+    <string id="compModelFace">Claude model</string>
+</strings>

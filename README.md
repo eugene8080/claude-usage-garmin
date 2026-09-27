@@ -74,9 +74,9 @@ If a watch send is still stopped by the phone later, the prompt comes back and t
 
 ## ⌚ On your Garmin watch
 
-<sub>Updated: 2026-09-25 · Built and tested on a tactix 8 (the `fenix847mm` Connect IQ profile); also builds for fēnix 8 43 mm and fēnix 8 Pro 47 mm (the Solar models are not targeted).</sub>
+<sub>Updated: 2026-09-27 · Built and tested on a tactix 8 (the `fenix847mm` Connect IQ profile); also builds for fēnix 8 43 mm and fēnix 8 Pro 47 mm (the Solar models are not targeted).</sub>
 
-Three Connect IQ projects put the same usage numbers on a fēnix 8 / tactix 8 class watch:
+Three Connect IQ projects, all under [`garmin/`](garmin/), put the same usage numbers on a fēnix 8 / tactix 8 class watch:
 
 <p align="center">
 <img src="docs/watchfaces.png" alt="The Claude Grid and Claude Terminal watch faces on a tactix 8" width="720" />
@@ -84,9 +84,14 @@ Three Connect IQ projects put the same usage numbers on a fēnix 8 / tactix 8 cl
 
 | Project | What it is |
 | --- | --- |
-| [`watch-usage-app/`](watch-usage-app/README.md) | **Claude Usage** — a glance showing the `5H` / `1W` / per-model meters with their reset times, and the **publisher**: it receives the numbers from the phone and republishes them as three watch **complications** that faces can show. |
-| [`watchface-grid/`](watchface-grid/editor/README.md) | **Claude Grid** — an Iron Grit–style data face: a big stacked time, battery arc, seconds dial and **seven editable data fields** that take *any* complication. |
-| [`watchface-terminal/`](watchface-terminal/README.md) | **Claude Terminal** — a CLI-styled face: a prompt line, the time, the date, the three Claude meters as terminal rows with bars, percentages and reset times, and a battery bar. |
+| [`garmin/watch-app/`](garmin/watch-app/README.md) | **Claude Usage** — a glance showing the `5H` / `1W` / per-model meters with their reset times, and the **publisher**: it receives the numbers from the phone and republishes them as three watch **complications** that faces can show. |
+| [`garmin/faces/grid/`](garmin/faces/grid/editor/README.md) | **Claude Grid** — an Iron Grit–style data face: a big stacked time, battery arc, seconds dial and **seven editable data fields** that take *any* complication. |
+| [`garmin/faces/terminal/`](garmin/faces/terminal/README.md) | **Claude Terminal** — a CLI-styled face: a prompt line, the time, the date, the three Claude meters as terminal rows with bars, percentages and reset times, and a battery bar. |
+
+Two more folders sit beside them: [`garmin/shared/`](garmin/shared/README.md) holds what the
+projects share instead of copying (launcher icons, the VFD mesh tile, the font generator), and
+[`garmin/CONTRACT.md`](garmin/CONTRACT.md) pins down every value the phone, the watch app and the
+faces must agree on — checked in CI by `garmin/tools/check_contract.py`.
 
 **How the numbers get there.** The watch never talks to Claude (Cloudflare and credential safety
 both rule it out — see the watch-app README). The phone app pushes the percentages over Bluetooth
@@ -132,8 +137,8 @@ is why the watch app must be installed (and opened once) for the faces to show C
 ### Layout editors
 
 Each face has a self-contained HTML designer — open it in any browser:
-[`watchface-grid/editor/claude-grid-editor.html`](watchface-grid/editor/claude-grid-editor.html) and
-[`watchface-terminal/editor/claude-terminal-editor.html`](watchface-terminal/editor/claude-terminal-editor.html).
+[`garmin/faces/grid/editor/claude-grid-editor.html`](garmin/faces/grid/editor/claude-grid-editor.html) and
+[`garmin/faces/terminal/editor/claude-terminal-editor.html`](garmin/faces/terminal/editor/claude-terminal-editor.html).
 Drag or arrow-key the elements, **Tab** between them, pick a **colour theme** (Claude, IV-22, Nord,
 Dracula, Tokyo Night and other VS Code themes) and a **font** (56, incl. dot-matrix faces like Doto),
 scrub a **preview time & date** to check for overlaps, and toggle the VFD look. Text is placed by the
@@ -149,11 +154,12 @@ fēnix 8 / tactix 8 47 & 51 mm) or build one (below). Connect the watch by USB w
 face(s) you want; pick the face from the watch's face list.
 
 ```bash
-monkeyc -f watchface-grid/monkey.jungle -o ClaudeGrid.prg -y <developer_key.der> -d fenix847mm -r
+monkeyc -f garmin/faces/grid/monkey.jungle -o ClaudeGrid.prg -y <developer_key.der> -d fenix847mm -r
 ```
 
 Needs the Connect IQ SDK and a developer key; each project's README has the details (fonts, the
-VFD assets and the generators that make them).
+VFD assets and the generators that make them). Build from a full checkout: the jungles pull shared
+resources from `garmin/shared/` by relative path, so a project folder copied out on its own won't compile.
 
 ### If the watch's numbers go stale
 
@@ -250,5 +256,7 @@ base64 -w0 release.keystore   # paste into the KEYSTORE_BASE64 secret
 | `ui/MainActivity.kt` | The setup / debug screen. |
 | `widget/` | The Glance widget and its layouts. |
 | `work/` | Background refresh scheduling. |
+| `watch/WatchBridge.kt` | The push to the Garmin watch app — the phone side of [`garmin/CONTRACT.md`](garmin/CONTRACT.md). |
+| `garmin/` | The Connect IQ watch app, the watch faces, their shared files and the phone↔watch contract (see [On your Garmin watch](#-on-your-garmin-watch)). |
 
 </details>

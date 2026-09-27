@@ -1,0 +1,13 @@
+project.manifest = manifest.xml
+
+base.sourcePath = source
+base.resourcePath = resources
+
+# The launcher icon must match each device's exact pixel size, so it lives in a
+# per-family resource folder rather than in `resources` - a single icon there
+# would be the wrong size on some targets. All three Garmin apps use the same
+# icon, so the per-family folders are shared (garmin/shared/, see its README).
+# Paths are relative to this file. `resources` (strings) is listed first on every path.
+fenix847mm.resourcePath = $(base.resourcePath);../shared/resources-round-454x454
+fenix8pro47mm.resourcePath = $(base.resourcePath);../shared/resources-round-454x454
+fenix843mm.resourcePath = $(base.resourcePath);../shared/resources-round-416x416
