@@ -166,7 +166,10 @@ Download the `.prg` for your watch from the [latest release](https://github.com/
 (`ClaudeUsage-*` is the watch app, `ClaudeGrid-*` / `ClaudeFace-*` the two faces; `fenix847mm` is the
 fēnix 8 / tactix 8 47 & 51 mm) or build one (below). Connect the watch by USB with its screen
 **awake and unlocked** and drag the file into **`GARMIN/Apps`**. Install the watch app and whichever
-face(s) you want; pick the face from the watch's face list.
+face(s) you want; pick the face from the watch's face list. From a checkout on Windows,
+`python garmin/tools/sideload.py grid terminal app` does the copy for you: it takes each project's
+newest build for your watch, prints how old it is, and confirms the file reached the watch
+(`--list` shows what it would pick).
 
 ```bash
 monkeyc -f garmin/faces/grid/monkey.jungle -o ClaudeGrid.prg -y <developer_key.der> -d fenix847mm -r
