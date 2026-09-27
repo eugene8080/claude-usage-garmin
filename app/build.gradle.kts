@@ -114,7 +114,7 @@ dependencies {
 
     // Garmin Connect IQ companion SDK - pushes the usage snapshot to the watch app.
     // The same artifact drives both a real watch (via Garmin Connect Mobile) and the
-    // Connect IQ simulator over adb; see WatchBridge and watch/README.md.
+    // Connect IQ simulator over adb; see WatchBridge and garmin/watch-app/README.md.
     implementation("com.garmin.connectiq:ciq-companion-app-sdk:2.4.0")
 
     // Coroutines

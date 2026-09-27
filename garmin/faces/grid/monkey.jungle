@@ -1,0 +1,18 @@
+project.manifest = manifest.xml
+
+# Default build = the VFD face (2026-09-25): glowing bitmap time (source-glow/ + the digit images
+# in resources-glow-vfd/) and the full-face mesh overlay (the MeshTile in ../../shared/resources-mesh/,
+# the same tile Claude Terminal uses). The two annotations pick which implementation of
+# drawGlowTime / drawMeshOverlay is compiled in:
+#   font_time     - plain font-drawn time        (excluded here -> bitmap time)
+#   plain_overlay - no mesh                      (excluded here -> mesh overlay)
+# tools/build_sharpness_variants.py rewrites these three lines for its test faces.
+# Paths are relative to this file; ../../shared/ is garmin/shared/ (see its README).
+base.sourcePath = source;source-glow
+base.resourcePath = resources;resources-glow-vfd;../../shared/resources-mesh
+base.excludeAnnotations = font_time;plain_overlay
+
+# Per-family launcher icons (size-specific), shared by all three Garmin apps.
+fenix847mm.resourcePath = $(base.resourcePath);../../shared/resources-round-454x454
+fenix8pro47mm.resourcePath = $(base.resourcePath);../../shared/resources-round-454x454
+fenix843mm.resourcePath = $(base.resourcePath);../../shared/resources-round-416x416

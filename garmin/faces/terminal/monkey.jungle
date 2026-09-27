@@ -1,0 +1,19 @@
+project.manifest = manifest.xml
+
+# Default build = the VFD style (glowing bitmap time + a full-face mesh, the same scheme as Claude
+# Grid). The overlay tiles come from two folders: the MeshTile shared with Claude Grid
+# (../../shared/resources-mesh/) and this face's own CRT ScanTile (resources-scanlines/, drawn
+# instead of the mesh when the Scanlines setting is on). The plain terminal face (font time,
+# no overlay) is compiled by switching these three lines to:
+#   base.sourcePath = source
+#   base.resourcePath = resources
+#   base.excludeAnnotations = glow_time;mesh_overlay
+# Paths are relative to this file; ../../shared/ is garmin/shared/ (see its README).
+base.sourcePath = source;source-glow
+base.resourcePath = resources;resources-glow;../../shared/resources-mesh;resources-scanlines
+base.excludeAnnotations = font_time;plain_overlay
+
+# Per-family launcher icons (size-specific), shared by all three Garmin apps.
+fenix847mm.resourcePath = $(base.resourcePath);../../shared/resources-round-454x454
+fenix8pro47mm.resourcePath = $(base.resourcePath);../../shared/resources-round-454x454
+fenix843mm.resourcePath = $(base.resourcePath);../../shared/resources-round-416x416
