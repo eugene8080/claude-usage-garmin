@@ -13,7 +13,8 @@ watch-face icon for the same field, as a tap-to-choose page whose picks come out
            Do not commit an embedded copy: the icons are Garmin's artwork.
 
 Our icons are rendered from ../tools/tabler-icons.ttf, the source of the face's cg_icon font
-(../tools/build_fonts_grid.py); the partly-cloudy composites use that script's recipe. The ROWS
+(../tools/build_fonts_grid.py); the solid weather set comes from ../../../shared/tools/weather_icons.py,
+the same generator that builds those glyphs into the font. The ROWS
 below restate which glyph the face draws for each field (ClaudeGridView.iconCodeFor,
 weatherGlyph, fillField, batteryGlyph) - update them together.
 
@@ -31,7 +32,9 @@ from pathlib import Path
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
-from scipy.ndimage import binary_dilation, binary_fill_holes
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent / "shared" / "tools"))
+import weather_icons  # noqa: E402  (garmin/shared/tools/weather_icons.py)
 
 HERE = Path(__file__).resolve().parent
 TTF = str(HERE.parent / "tools" / "tabler-icons.ttf")
@@ -95,30 +98,26 @@ def tabler(cp: int) -> str:
     return to_uri(im)
 
 
-def composite(back_cp: int, ss: int = 4) -> str:
-    """build_fonts_grid.composite_icon at SIZE: a small sun/moon behind a cloud, with a moat."""
-    k = SIZE / 24
-    big = ImageFont.truetype(TTF, int(SIZE * ss * 0.86))
-    small = ImageFont.truetype(TTF, int(SIZE * ss * 0.62))
-    asc, desc = ImageFont.truetype(TTF, SIZE).getmetrics()
-    adv = int(round(ImageFont.truetype(TTF, SIZE).getlength(chr(0xea76))))
-    w, h = adv * ss, (asc + desc) * ss
-
-    def layer(font, cp, dx, dy):
-        im = Image.new("L", (w, h), 0)
-        ImageDraw.Draw(im).text((dx, dy), chr(cp), font=font, fill=255)
-        return np.asarray(im).astype(np.float64) / 255.0
-
-    cloud = layer(big, 0xea76, 0, int(4.5 * ss * k))
-    back = layer(small, back_cp, int(w * 0.40), int(-0.5 * ss * k))
-    cut = binary_dilation(binary_fill_holes(cloud > 0.35), iterations=int(ss * k))
-    out = np.maximum(cloud, np.where(cut, 0.0, back))
-    img = Image.fromarray(np.round(out * 255).astype(np.uint8), "L")
-    return to_uri(img.resize((w // ss, h // ss), Image.BOX))
+def weather(kind: str) -> str:
+    """One of the face's solid weather icons (weather_icons.KINDS), rendered at SIZE."""
+    img, _adv = weather_icons.render(kind, TTF, SIZE)
+    return to_uri(img)
 
 
 def ours(g) -> str:
-    return composite(g[1]) if isinstance(g, tuple) else tabler(g)
+    """A Tabler code point, or ("weather", kind) for the solid weather set."""
+    return weather(g[1]) if isinstance(g, tuple) else tabler(g)
+
+
+def city_tile(code: str, time: str) -> str:
+    """The time-zone field as the face draws it now: the city code over the time."""
+    svg = ('<svg xmlns="http://www.w3.org/2000/svg" width="80" height="60">'
+           '<text x="40" y="24" text-anchor="middle" font-family="IBM Plex Mono, monospace" '
+           'font-size="17" font-weight="600" fill="#9aa0d0" letter-spacing="1">%s</text>'
+           '<text x="40" y="48" text-anchor="middle" font-family="IBM Plex Mono, monospace" '
+           'font-size="19" font-weight="600" fill="#ffffff">%s</text></svg>'
+           % (html.escape(code), html.escape(time)))
+    return "data:image/svg+xml;base64," + base64.b64encode(svg.encode()).decode("ascii")
 
 
 def vo2() -> str:
@@ -242,13 +241,18 @@ def build_rows(g: Garmin):
         ("Recovery time", 0xf228, "zzz", "recov", ""),
         ("Solar input", 0xeb30, "sun", "solar", "Solar models only, not your tactix 8"),
         ("Training status", 0xeb43, "trending-up", "ts", ""),
-        ("Weather", ("composite", 0xeb30), "cloud + sun", "wx", "Ours changes with the condition (set below)"),
+        ("Weather", ("weather", "partly_day"), "cloud + sun, filled", "wx",
+         "Solid, Garmin-style; ours changes with the condition (set below)"),
         ("Alarm (indicator)", 0xea04, "alarm", "alarm", "Top-left corner when an alarm is set"),
-        ("Second time zone", 0xeb54, "world", "utc", "Now shows the city code (NY, LDN...) instead"),
     ]
     for field, glyph, tname, gkey, note in paired:
         add("both", field, "Tabler " + tname + (" · " + note if note else ""),
             [("ours", "Ours", "", uri_img(ours(glyph), "Ours"))] + g.options(gkey), "ours")
+    # Row 20: the face shows the city code now; the globe it used before is a separate option.
+    add("both", "Second time zone", "Data 08's clock: the city code (NY, LDN...) over the time, "
+        "as the face draws it now; the globe was the old marker",
+        [("ours", "City code", "as now", uri_img(city_tile("NY", "14:30"), "City code")),
+         ("globe", "Globe", "old", uri_img(tabler(0xeb54), "Globe"))] + g.options("utc"), "ours")
 
     for field, gkey, label in [("Barometric pressure", "baro", "PRESS"), ("Calendar events", "calendar", "CAL"),
                                ("Weekly running distance", "run", "RUN"),
@@ -276,10 +280,10 @@ def build_rows(g: Garmin):
     return rows
 
 
-WEATHER_SET = [("Clear, day", 0xeb30), ("Clear, night", 0xeaf8),
-               ("Partly cloudy, day", ("composite", 0xeb30)), ("Partly cloudy, night", ("composite", 0xeaf8)),
-               ("Cloudy", 0xea76), ("Rain", 0xea72), ("Snow / ice", 0xea73), ("Storm", 0xea74),
-               ("Fog / haze", 0xecd9), ("Wind", 0xec34)]
+WEATHER_SET = [("Clear, day", ("weather", "clear_day")), ("Clear, night", ("weather", "clear_night")),
+               ("Partly cloudy, day", ("weather", "partly_day")), ("Partly cloudy, night", ("weather", "partly_night")),
+               ("Cloudy", ("weather", "cloudy")), ("Rain", ("weather", "rain")), ("Snow / ice", ("weather", "snow")),
+               ("Storm", ("weather", "storm")), ("Fog / haze", ("weather", "fog")), ("Wind", ("weather", "wind"))]
 
 
 # ---- page -------------------------------------------------------------------------------------
@@ -484,7 +488,8 @@ def build_page(embed: bool) -> str:
     <p>Face settings &rsaquo; Data fields: data Garmin has no complication for. No Garmin icons in the article.</p><ol>%s</ol></section>
   <section><h2>Weather set</h2>
     <p>The weather field and the Terminal&rsquo;s weather line change icon with the condition (moon after sunset).
-      Garmin&rsquo;s article has a single weather icon, row 18. Mention any you want redrawn.</p><ol class="grid">%s</ol></section>
+      Solid shapes in Garmin&rsquo;s style; Garmin&rsquo;s article has a single weather icon, row 18.
+      Mention any you want redrawn.</p><ol class="grid">%s</ol></section>
   <section><details><summary>Garmin icons with no Connect IQ field (can&rsquo;t appear on our faces)</summary>
     <ol class="grid">%s</ol></details></section>
   <section class="out" id="out">

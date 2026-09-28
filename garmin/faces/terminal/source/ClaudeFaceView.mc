@@ -732,12 +732,12 @@ class ClaudeFaceView extends WatchUi.WatchFace {
         return now.lessThan(rise) || now.greaterThan(set);
     }
 
-    //! Weather condition -> glyph in stm_icon (Claude Grid's cg_icon; keep the two in step).
-    //! 0xE001 / 0xE002 are the composited cloud+sun / cloud+moon.
+    //! Weather condition -> glyph in stm_icon (Claude Grid's cg_icon; keep the two in step): the
+    //! solid weather set at 0xE001-0xE00A (garmin/shared/tools/weather_icons.py CODES).
     private function weatherGlyph(c as Number, night as Boolean) as Number {
         if (c == Weather.CONDITION_CLEAR || c == Weather.CONDITION_FAIR
          || c == Weather.CONDITION_MOSTLY_CLEAR) {
-            return night ? 0xeaf8 : 0xeb30;                      // moon / sun
+            return night ? 0xE004 : 0xE003;                      // moon / sun
         }
         if (c == Weather.CONDITION_PARTLY_CLOUDY || c == Weather.CONDITION_PARTLY_CLEAR
          || c == Weather.CONDITION_THIN_CLOUDS) {
@@ -746,7 +746,7 @@ class ClaudeFaceView extends WatchUi.WatchFace {
         if (c == Weather.CONDITION_THUNDERSTORMS || c == Weather.CONDITION_SCATTERED_THUNDERSTORMS
          || c == Weather.CONDITION_CHANCE_OF_THUNDERSTORMS || c == Weather.CONDITION_HURRICANE
          || c == Weather.CONDITION_TROPICAL_STORM || c == Weather.CONDITION_TORNADO) {
-            return 0xea74;
+            return 0xE008;
         }
         if (c == Weather.CONDITION_SNOW || c == Weather.CONDITION_LIGHT_SNOW
          || c == Weather.CONDITION_HEAVY_SNOW || c == Weather.CONDITION_FLURRIES
@@ -757,7 +757,7 @@ class ClaudeFaceView extends WatchUi.WatchFace {
          || c == Weather.CONDITION_SLEET || c == Weather.CONDITION_ICE
          || c == Weather.CONDITION_ICE_SNOW || c == Weather.CONDITION_HAIL
          || c == Weather.CONDITION_FREEZING_RAIN) {
-            return 0xea73;
+            return 0xE007;
         }
         if (c == Weather.CONDITION_RAIN || c == Weather.CONDITION_LIGHT_RAIN
          || c == Weather.CONDITION_HEAVY_RAIN || c == Weather.CONDITION_SHOWERS
@@ -765,18 +765,18 @@ class ClaudeFaceView extends WatchUi.WatchFace {
          || c == Weather.CONDITION_SCATTERED_SHOWERS || c == Weather.CONDITION_CHANCE_OF_SHOWERS
          || c == Weather.CONDITION_DRIZZLE || c == Weather.CONDITION_CLOUDY_CHANCE_OF_RAIN
          || c == Weather.CONDITION_UNKNOWN_PRECIPITATION) {
-            return 0xea72;
+            return 0xE006;
         }
         if (c == Weather.CONDITION_FOG || c == Weather.CONDITION_HAZY || c == Weather.CONDITION_HAZE
          || c == Weather.CONDITION_MIST || c == Weather.CONDITION_SMOKE || c == Weather.CONDITION_DUST
          || c == Weather.CONDITION_SAND || c == Weather.CONDITION_SANDSTORM
          || c == Weather.CONDITION_VOLCANIC_ASH) {
-            return 0xecd9;
+            return 0xE009;
         }
         if (c == Weather.CONDITION_WINDY || c == Weather.CONDITION_SQUALL) {
-            return 0xec34;
+            return 0xE00A;
         }
-        return 0xea76; // cloud: MOSTLY_CLOUDY, CLOUDY (overcast) and anything unknown
+        return 0xE005; // cloud: MOSTLY_CLOUDY, CLOUDY (overcast) and anything unknown
     }
 
     //! A hollow rectangle: a `t`-px border drawn INSIDE (x, y, w, h), all edges on whole pixels.

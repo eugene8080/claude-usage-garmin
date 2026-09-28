@@ -130,6 +130,8 @@ is why the watch app must be installed (and opened once) for the faces to show C
   editor lists only complications and has none for these, so they're a face setting instead
   (*Data fields* in the face settings on the watch, or in Garmin Connect), which overrides the
   editor's pick for that slot. Wind shows an arrow for the way it's blowing.
+- **Solid weather icons** in Garmin's style (sun, moon, partly cloudy, cloud, rain, snow, storm,
+  fog, wind), shared with Claude Terminal.
 - The **battery icon fills with the charge** (empty to four bars, or a plug while charging), like
   Garmin's own.
 - **Data 07**, the dial at the bottom, is the live seconds until you pick a field for it — e.g.
@@ -152,7 +154,7 @@ is why the watch app must be installed (and opened once) for the faces to show C
   glowing green **retro tube** screen with scanlines (Night Owl blue is the alternative).
 - A segmented **battery bar** under the meters — Claude Grid's top battery arc, straightened (turns
   red at 20%).
-- **Weather** at the top, like Rad Lad: the current condition icon (sun / moon by time of day),
+- **Weather** at the top, like Rad Lad: the current condition icon (solid, Garmin-style; sun / moon by time of day),
   the temperature and the feels-like temperature (`32° FL40°`), in the watch's units.
 - **Hold a meter row** to open Claude Usage; hold the weather line, the date or the battery bar
   to open the watch's weather, calendar or battery screen (Garmin's hold-to-launch).
