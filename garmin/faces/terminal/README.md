@@ -9,7 +9,8 @@ Retro tube theme with scanlines (Night Owl is the alternative), with a glowing V
 (or scanlines) stays, much as
 on Claude Grid.
 
-A weather line sits at the top (condition icon + temperature, from `Toybox.Weather`; the icons
+A weather line sits at the top (condition icon, temperature and feels-like temperature, from
+`Toybox.Weather`; the icons
 are Claude Grid's `cg_icon`, copied as `stm_icon` by `tools/build_fonts_terminal.py`). Garmin
 Connect settings add a **colour theme** - **Retro tube** by default (green phosphor on a dark
 green background, 80 %+ bars in the brightest green #11ff00; its own glow digit set, `rt*`, from

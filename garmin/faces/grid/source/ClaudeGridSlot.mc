@@ -17,8 +17,8 @@ module SlotKind {
 //! and (for rings) fill fraction as the assigned complication updates.
 //!
 //! The value auto-fits: it is drawn with the largest of `_valueFonts` (largest -> smallest) that
-//! fits `_valueMaxW`, so wide readings shrink instead of overflowing. High/low temperature draws
-//! stacked (two lines + divider). In always-on (`lowPower`) the ring circle is dropped, leaving
+//! fits `_valueMaxW`, so wide readings shrink instead of overflowing. High/low temperature, and
+//! current weather with a feels-like reading, draw stacked (two lines). In always-on (`lowPower`) the ring circle is dropped, leaving
 //! just the icon + value inside, matching the editor's low-power preview.
 class ClaudeGridSlot extends WatchUi.Drawable {
 
@@ -59,6 +59,7 @@ class ClaudeGridSlot extends WatchUi.Drawable {
     private const _CHIP_ICON_DY = 28;    // icon lifted above the value
     private const _CHIP_LABEL_DY = 22;   // text label (no-icon fallback) lift
     private const _CHIP_STACK_DY = 12;   // hi/low temp: each line this far from centre (no divider)
+    private const _CHIP_STACK_ICON_SHIFT = 8;  // stacked pair under an icon: moved down this far
     private const _RING_ICON_DY = 23;
     private const _RING_VALUE_DY = 10;
 
@@ -242,18 +243,25 @@ class ClaudeGridSlot extends WatchUi.Drawable {
             GridDraw.text(dc, sx + mw + gap, cy, vf, val,
                 Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
         } else if (stacked) {
-            // hi/low temperature: the two readings directly on top of each other (Iron Grit look),
-            // no divider. Both lines share ONE right edge - the centred block's right side - so
-            // the digits and ° signs line up column-for-column even when the widths differ
-            // (e.g. "9°" over "-2°"); centring each line separately staggered them.
-            if (hasIcon) { drawMarker(dc, cx, cy - _CHIP_ICON_DY - 6); }
+            // Two readings directly on top of each other (Iron Grit look), no divider: hi/low
+            // temperature, or current weather's actual over feels-like. Both lines share ONE right
+            // edge - the centred block's right side - so the digits and ° signs line up
+            // column-for-column even when the widths differ (e.g. "9°" over "-2°"); centring each
+            // line separately staggered them.
+            // With an icon (current weather) the icon keeps its usual chip position and the pair
+            // moves down instead: lifting the icon would push it into the ring slot above.
+            var sy = cy;
+            if (hasIcon) {
+                drawMarker(dc, cx, cy - _CHIP_ICON_DY);
+                sy = cy + _CHIP_STACK_ICON_SHIFT;
+            }
             dc.setColor(valueColor, Graphics.COLOR_TRANSPARENT);
             var wTop = dc.getTextWidthInPixels(valueTop, _fStacked);
             var wBot = dc.getTextWidthInPixels(valueBot, _fStacked);
             var right = cx + ((wTop > wBot ? wTop : wBot) / 2);
-            GridDraw.text(dc, right, cy - _CHIP_STACK_DY, _fStacked, valueTop,
+            GridDraw.text(dc, right, sy - _CHIP_STACK_DY, _fStacked, valueTop,
                 Graphics.TEXT_JUSTIFY_RIGHT | Graphics.TEXT_JUSTIFY_VCENTER);
-            GridDraw.text(dc, right, cy + _CHIP_STACK_DY, _fStacked, valueBot,
+            GridDraw.text(dc, right, sy + _CHIP_STACK_DY, _fStacked, valueBot,
                 Graphics.TEXT_JUSTIFY_RIGHT | Graphics.TEXT_JUSTIFY_VCENTER);
         } else {
             drawMarker(dc, cx, cy - (hasIcon ? _CHIP_ICON_DY : _CHIP_LABEL_DY));

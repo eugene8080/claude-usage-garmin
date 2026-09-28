@@ -113,6 +113,7 @@ is why the watch app must be installed (and opened once) for the faces to show C
   ~5 minutes, which is what feeds Claude Grid's and Claude Terminal's meters.
 - The version number at the top of the glance confirms which build is on the watch — handy
   since a sideload doesn't show up in Garmin Connect the way a store install does.
+- **Hold a Claude meter on either face** and this app opens, with the countdown to each reset.
 
 ### Claude Grid
 
@@ -121,6 +122,11 @@ is why the watch app must be installed (and opened once) for the faces to show C
   respiration, VO2 max, training status… Every slot accepts *any* complication, including other
   Connect IQ apps' — e.g. **[QuoteGlance](https://apps.garmin.com/en-US/apps/da6bba83-ce69-47cf-9353-85beba4bbe31)**
   stock quotes (shown as the price, so it fits a corner).
+- **Hold a data field to open its app** (Garmin's hold-to-launch): a Claude meter opens Claude
+  Usage; a built-in field (weather, heart rate…) opens the watch's own screen for it, where the
+  watch offers one. Holding the time, the dial or the date still does what it always did.
+- **Current Weather** shows the temperature with the **feels-like** temperature (`FL40°`) under
+  it — Garmin has no feels-like complication, so the face reads it from the weather data itself.
 - **Data 08** shows a **second time zone** until you pick a complication for it; its city
   (15 choices, daylight saving automatic) is a face setting on the watch or in Garmin Connect.
 - The default look is a **synthwave VFD**: a glowing IBM Plex Mono time (white hour, pink-to-coral
@@ -135,8 +141,10 @@ is why the watch app must be installed (and opened once) for the faces to show C
   glowing green **retro tube** screen with scanlines (Night Owl blue is the alternative).
 - A segmented **battery bar** under the meters — Claude Grid's top battery arc, straightened (turns
   red at 20%).
-- **Weather** at the top, like Rad Lad: the current condition icon (sun / moon by time of day) and
-  the temperature in the watch's units.
+- **Weather** at the top, like Rad Lad: the current condition icon (sun / moon by time of day),
+  the temperature and the feels-like temperature (`32° FL40°`), in the watch's units.
+- **Hold a meter row** to open Claude Usage, or **hold the weather line** to open the watch's
+  weather view (Garmin's hold-to-launch).
 - Settings — **on the watch** (hold the face → Settings) and in Garmin Connect for a store
   install: the **prompt text** (typed on the watch with its own keyboard — make the top line say
   whatever you like), the **Retro tube** theme (**the default**: green phosphor on a dark-green

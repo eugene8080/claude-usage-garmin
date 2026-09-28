@@ -23,6 +23,7 @@ import Toybox.Weather;
 //! complication is picked for it (or when forced by the AltTzAlways setting) it shows a second time
 //! zone, whose city is a setting (on-watch menu or Garmin Connect).
 //! Accent and data colours are editable natively; the rest of the palette is baked from the editor.
+//! On the live face, touch-and-hold on a slot launches its complication's app (launchComplicationAt).
 class ClaudeGridView extends WatchUi.WatchFace {
 
     // --- palette (from the layout editor) ---------------------------------------------------
@@ -264,6 +265,7 @@ class ClaudeGridView extends WatchUi.WatchFace {
             }
             slot.valueTop = "";
             slot.valueBot = "";
+            var feels = "";   // current weather's feels-like reading ("40°"), "" when unknown
 
             if (t == Complications.COMPLICATION_TYPE_WEEKDAY_MONTHDAY
                     || t == Complications.COMPLICATION_TYPE_DATE) {
@@ -280,6 +282,7 @@ class ClaudeGridView extends WatchUi.WatchFace {
                 var w = currentWeather();
                 slot.iconChar = w[0];
                 vs = w[1];
+                feels = w[2];
             } else if (t == Complications.COMPLICATION_TYPE_CURRENT_TEMPERATURE) {
                 vs = withDegree(vs);
             } else if (t == Complications.COMPLICATION_TYPE_TRAINING_STATUS) {
@@ -295,6 +298,16 @@ class ClaudeGridView extends WatchUi.WatchFace {
                 } else {
                     slot.value = withDegree(vs);
                 }
+            } else if (!feels.equals("") && !vs.equals("--")
+                    && slot.kind == SlotKind.CHIP && !slot.horizontal) {
+                // Current weather: the actual temperature over the feels-like one (wind chill or
+                // heat index), stacked like the high/low chip. "FL" marks the second reading, as
+                // "H" / "L" do there. Garmin has no feels-like complication type, so this is the
+                // only way onto the face - read from Weather.getCurrentConditions(). Only a plain
+                // chip draws two lines; in a ring or the one-row Data 01 the current reading stays.
+                slot.valueTop = vs;
+                slot.valueBot = "FL" + feels;
+                slot.value = "";
             } else {
                 slot.value = vs;
             }
@@ -368,6 +381,44 @@ class ClaudeGridView extends WatchUi.WatchFace {
             :drawable => slot,
             :boundingBox => slot.getBoundingBox()
         });
+    }
+
+    // ---- hold-to-launch (live face) ----
+
+    //! Touch-and-hold (ClaudeGridDelegate.onPress): exit to the app that owns the complication in
+    //! the slot under (x, y) - the Claude Usage app for a Claude meter, the watch's own app for a
+    //! native field. Returns false, leaving the hold to the system, when no slot is hit, the slot
+    //! has no complication, or Data 08 is showing the time-zone clock: that clock is drawn by this
+    //! face, so launching the complication hidden behind it would be a surprise.
+    public function launchComplicationAt(x as Number, y as Number) as Boolean {
+        var uid = getTappedComplication(x, y);
+        if (uid == null) { return false; }
+        if (uid == 8 && altTzActive()) { return false; }
+        var id = _slotIds[uid];
+        if (id == null) { return false; }
+        try {
+            Complications.exitTo(id as Complications.Id);
+            return true;
+        } catch (e) {
+            // InvalidValueException: the id is not from a launchable app (e.g. its publisher was
+            // uninstalled since the slot was set). Nothing to open, so let the system handle it.
+            System.println("hold-to-launch: exitTo failed for slot " + uid.toString());
+            return false;
+        }
+    }
+
+    //! Re-read the slots showing current weather. The weather complication's VALUE is the
+    //! condition code, so its change callback need not fire when only the temperatures move;
+    //! refreshing on wake keeps the actual and feels-like readings current whenever the watch is
+    //! looked at, at the cost of one Weather.getCurrentConditions() call per weather slot.
+    private function refreshWeatherSlots() as Void {
+        for (var i = 0; i < _slots.size(); i++) {
+            var id = _slotIds[_slots[i].uid];
+            if (id != null && (id as Complications.Id).getType()
+                    == Complications.COMPLICATION_TYPE_CURRENT_WEATHER) {
+                updateSlotText(_slots[i].uid);
+            }
+        }
     }
 
     // ---- drawing ----
@@ -681,11 +732,13 @@ class ClaudeGridView extends WatchUi.WatchFace {
 
     public function onShow() as Void {
         readSettings();   // an on-watch settings edit lands here when the face comes back
+        refreshWeatherSlots();
         _lowPower = false;
         startSweep();
     }
 
     public function onExitSleep() as Void {
+        refreshWeatherSlots();
         _lowPower = false;
         startSweep();
     }
@@ -832,30 +885,41 @@ class ClaudeGridView extends WatchUi.WatchFace {
         return s + "°";
     }
 
-    //! [icon, value] for current weather, straight from Weather.getCurrentConditions(): the live
-    //! temperature (converted to the watch's unit) and an icon for the actual condition, sun or
-    //! moon variant by whether it's currently between sunrise and sunset at that location.
+    //! [icon, value, feels] for current weather, straight from Weather.getCurrentConditions(): the
+    //! live temperature and the feels-like temperature (wind chill / heat index), both converted to
+    //! the watch's unit, and an icon for the actual condition, sun or moon variant by whether it's
+    //! currently between sunrise and sunset at that location. `feels` is "" when not reported.
     private function currentWeather() as Array<String> {
         try {
             var cc = Weather.getCurrentConditions();
-            if (cc == null) { return ["", "--"]; }
+            if (cc == null) { return ["", "--", ""]; }
             var val = "--";
             var tc = cc.temperature;
             if (tc != null) {
-                var tv = tc.toFloat();
-                if (System.getDeviceSettings().temperatureUnits == System.UNIT_STATUTE) {
-                    tv = tv * 9.0 / 5.0 + 32.0;
-                }
-                val = Math.round(tv).toNumber().format("%d") + "°";
+                val = tempStr(tc);
+            }
+            var feels = "";
+            var fc = cc.feelsLikeTemperature;
+            if (fc != null) {
+                feels = tempStr(fc);
             }
             var icon = "";
             if (cc.condition != null) {
                 icon = weatherGlyph(cc.condition as Number, isNight(cc)).toChar().toString();
             }
-            return [icon, val];
+            return [icon, val, feels];
         } catch (ex) {
-            return ["", "--"];
+            return ["", "--", ""];
         }
+    }
+
+    //! A Celsius reading from the Weather API -> "32°" in the watch's temperature unit, rounded.
+    private function tempStr(celsius as Numeric) as String {
+        var tv = celsius.toFloat();
+        if (System.getDeviceSettings().temperatureUnits == System.UNIT_STATUTE) {
+            tv = tv * 9.0 / 5.0 + 32.0;
+        }
+        return Math.round(tv).toNumber().format("%d") + "°";
     }
 
     //! True between local sunset and the next sunrise at the observation location. Unknown
