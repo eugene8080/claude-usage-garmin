@@ -2,8 +2,9 @@ import Toybox.Application;
 import Toybox.Lang;
 import Toybox.WatchUi;
 
-//! "Claude Grid" - an Iron Grit-style data face in Chakra Petch with seven user-editable
-//! complication slots (Data 01-06, 08) plus a fixed seconds dial (Data 07), configured with
+//! "Claude Grid" - an Iron Grit-style data face in Chakra Petch with eight user-editable
+//! complication slots (Data 01-08; 07 is the bottom dial, the live seconds until a field is
+//! picked for it), configured with
 //! Garmin's native on-device watch face editor. The view always comes with a WatchFaceDelegate:
 //! in the editor it maps taps to slots so the editor can preview them, and on the live face it
 //! handles touch-and-hold on a slot (hold-to-launch the complication's app).

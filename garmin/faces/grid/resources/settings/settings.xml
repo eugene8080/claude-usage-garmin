@@ -23,4 +23,7 @@
     <setting propertyKey="@Properties.AltTzAlways" title="@Strings.altTzAlwaysLong">
         <settingConfig type="boolean" />
     </setting>
+    <setting propertyKey="@Properties.SecondsAlways" title="@Strings.secAlwaysLong">
+        <settingConfig type="boolean" />
+    </setting>
 </settings>

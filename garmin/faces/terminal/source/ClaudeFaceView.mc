@@ -22,8 +22,8 @@ import Toybox.WatchUi;
 //! onComplicationChange refreshes the cache. The reset time is carried in the complication's `unit`
 //! field as raw epoch-seconds and formatted here.
 //!
-//! Touch-and-hold on a meter row or the weather line launches the app behind it
-//! (launchComplicationAt, called from ClaudeFaceDelegate.onPress).
+//! Touch-and-hold on a meter row, the weather line, the date or the battery bar launches the app
+//! behind it (launchComplicationAt, called from ClaudeFaceDelegate.onPress).
 class ClaudeFaceView extends WatchUi.WatchFace {
 
     // Colour theme (the "Theme" setting; see applyTheme). Night Owl by default. The VFD time's
@@ -346,9 +346,10 @@ class ClaudeFaceView extends WatchUi.WatchFace {
 
     //! Touch-and-hold (ClaudeFaceDelegate.onPress): exit to the app behind the line under (x, y).
     //! A meter row opens the app that publishes its complication (the Claude Usage app); the
-    //! weather line opens the watch's weather app through the native current-weather complication.
-    //! Returns false, leaving the hold to the system, anywhere else, on a row whose complication
-    //! was never found, or on the weather line while it is blank (no weather synced yet).
+    //! weather line, the date and the battery bar open the watch's own weather, calendar and
+    //! battery screens through the matching native complications. Returns false, leaving the hold
+    //! to the system, anywhere else (the prompt, the time), on a row whose complication was never
+    //! found, or on the weather line while it is blank (no weather synced yet).
     public function launchComplicationAt(x as Number, y as Number) as Boolean {
         if (!(Toybox has :Complications)) { return false; }
         var ds = System.getDeviceSettings();
@@ -357,8 +358,16 @@ class ClaudeFaceView extends WatchUi.WatchFace {
         var id = null;
 
         var wxTop = h * WX_Y - HOLD_PAD;
+        var dateTop = h * DATE_Y - HOLD_PAD;
+        var battTop = h * BATT_Y - 2 * HOLD_PAD;
         if (y >= wxTop && y < wxTop + WX_HOLD_H && !(currentWeather()[1]).equals("")) {
             id = new Complications.Id(Complications.COMPLICATION_TYPE_CURRENT_WEATHER);
+        } else if (y >= dateTop && y < h * ROWS_Y - HOLD_PAD) {
+            // The date line runs down to where the first meter row's band starts.
+            id = new Complications.Id(Complications.COMPLICATION_TYPE_CALENDAR_EVENTS);
+        } else if (y >= battTop && y < battTop + w * BATT_H + 4 * HOLD_PAD
+                   && x >= w * 0.20 && x <= w * 0.80) {
+            id = new Complications.Id(Complications.COMPLICATION_TYPE_BATTERY);
         } else if (x >= w * 0.10 && x <= w * 0.90) {
             for (var i = 0; i < 3; i++) {
                 var top = h * (ROWS_Y + ROWS_GAP * i) - HOLD_PAD;

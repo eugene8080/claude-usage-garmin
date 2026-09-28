@@ -1,13 +1,15 @@
 import Toybox.Graphics;
 import Toybox.Lang;
 import Toybox.Math;
+import Toybox.System;
 import Toybox.WatchUi;
 
 //! A data slot's visual style.
 module SlotKind {
     enum {
-        CHIP = 0,   // icon over value (Data 01/02/03/06)
-        RING = 1    // gradient ring gauge with icon + value inside (Data 04/05)
+        CHIP = 0,   // icon over value (Data 01/02/03/06/08)
+        RING = 1,   // gradient ring gauge with icon + value inside (Data 04/05)
+        DIAL = 2    // Data 07: 60-tick ring - the live seconds, or a picked field's gauge
     }
 }
 
@@ -45,6 +47,9 @@ class ClaudeGridSlot extends WatchUi.Drawable {
     //! clock keeps the 30px font it had as a fixed field, even though "HH:MM" is a hair wider
     //! than the slot's bezel budget).
     public var forceFont as Graphics.FontType? = null;
+    //! DIAL only: true = the live seconds dial (no field picked, or forced by the SecondsAlways
+    //! setting); false = gauge the picked field. Set by the view before each draw.
+    public var secondsMode as Boolean = true;
 
     private var _fLabel as Graphics.FontType;
     private var _fIcon as Graphics.FontType?;    // Tabler icon glyph (may be null)
@@ -54,6 +59,9 @@ class ClaudeGridSlot extends WatchUi.Drawable {
     private var _scx as Number = 0;              // screen centre + radius, for widthAt()
     private var _scy as Number = 0;
     private var _sr as Number = 0;               // 0 = unknown -> fall back to _valueMaxW
+    private var _fTicks as Graphics.FontType?;   // DIAL: pre-rasterised 60-tick ring font
+    private var _fLabelSmall as Graphics.FontType?;  // DIAL: fallback label font for long labels
+    private var _clearR as Number = 0;           // DIAL: black knockout disc radius
 
     // text offsets, in px (tied to the fixed bitmap-font heights; from the layout editor)
     private const _CHIP_ICON_DY = 28;    // icon lifted above the value
@@ -62,9 +70,17 @@ class ClaudeGridSlot extends WatchUi.Drawable {
     private const _CHIP_STACK_ICON_SHIFT = 8;  // stacked pair under an icon: moved down this far
     private const _RING_ICON_DY = 23;
     private const _RING_VALUE_DY = 10;
+    private const _DIAL_LABEL_DY = 24;   // "SEC", above the dial centre
+    private const _DIAL_VALUE_DY = 11;   // the seconds, below it
+    // A picked field's label and value sit closer to the centre, where the ring is wider: at
+    // "SEC"'s row a 5-letter model name ("FABLE") would be clipped to 4 by the ticks.
+    private const _DIAL_FIELD_LABEL_DY = 17;
+    private const _DIAL_FIELD_VALUE_DY = 13;
+    private const _DIAL_INSET = 10;      // text stays this far inside the tick ring's outer radius
 
     //! @param opts :uid, :kind, :cx, :cy, :ringR, :ringPen, :striped, :horizontal, :fLabel,
-    //!             :fIcon, :valueFonts (Array), :fStacked, :valueMaxW, :screen ([cx, cy, r])
+    //!             :fIcon, :valueFonts (Array), :fStacked, :valueMaxW, :screen ([cx, cy, r]),
+    //!             and for DIAL :fTicks, :fLabelSmall, :clearR
     function initialize(opts as Dictionary) {
         Drawable.initialize({ :identifier => opts[:uid] });
         uid = opts[:uid];
@@ -80,6 +96,9 @@ class ClaudeGridSlot extends WatchUi.Drawable {
         _valueFonts = opts[:valueFonts];
         _fStacked = opts[:fStacked];
         _valueMaxW = opts[:valueMaxW];
+        _fTicks = opts.hasKey(:fTicks) ? opts[:fTicks] : null;
+        _fLabelSmall = opts.hasKey(:fLabelSmall) ? opts[:fLabelSmall] : null;
+        _clearR = opts.hasKey(:clearR) ? opts[:clearR] : 0;
         if (opts.hasKey(:screen)) {
             var sc = opts[:screen] as Array<Number>;
             _scx = sc[0];
@@ -94,6 +113,8 @@ class ClaudeGridSlot extends WatchUi.Drawable {
         if (kind == SlotKind.RING) {
             var r = ringR + ringPen + 2;
             bb.addRectangle(cx - r, cy - r, 2 * r, 2 * r);
+        } else if (kind == SlotKind.DIAL) {
+            bb.addRectangle(cx - _clearR, cy - _clearR, 2 * _clearR, 2 * _clearR);
         } else {
             var halfW = 52;
             bb.addRectangle(cx - halfW, cy - 36, 2 * halfW, 66);
@@ -113,6 +134,7 @@ class ClaudeGridSlot extends WatchUi.Drawable {
     //! (The old single budget was measured at the slot's centre line, so a label lifted 22 px
     //! above it - where the circle is narrower - could still run off the edge.)
     private function widthAt(dc as Dc, y as Numeric, font as Graphics.FontType) as Number {
+        if (kind == SlotKind.DIAL) { return dialWidthAt(dc, y, font); }
         if (_sr <= 0 || kind == SlotKind.RING) { return _valueMaxW; }  // rings: interior budget
         var hh = (dc.getFontHeight(font) * 0.32).toNumber();         // ~half the cap height
         var yw = (y < _scy) ? (y - hh) : (y + hh);
@@ -122,6 +144,19 @@ class ClaudeGridSlot extends WatchUi.Drawable {
         var off = cx - _scx;
         if (off < 0) { off = -off; }
         var avail = (2.0 * (Math.sqrt(hw2) - off - 8.0)).toNumber();
+        return (avail < _valueMaxW) ? avail : _valueMaxW;
+    }
+
+    //! DIAL: width inside the tick ring (radius ringR - _DIAL_INSET) at the text edge farther from
+    //! the dial centre - the same round-screen rule as widthAt, applied to the dial's own circle.
+    private function dialWidthAt(dc as Dc, y as Numeric, font as Graphics.FontType) as Number {
+        var hh = (dc.getFontHeight(font) * 0.32).toNumber();
+        var yw = (y < cy) ? (y - hh) : (y + hh);
+        var dy = (yw - cy).toFloat();
+        var r = (ringR - _DIAL_INSET).toFloat();
+        var hw2 = r * r - dy * dy;
+        if (hw2 <= 0.0) { return 0; }
+        var avail = (2.0 * Math.sqrt(hw2)).toNumber();
         return (avail < _valueMaxW) ? avail : _valueMaxW;
     }
 
@@ -204,8 +239,49 @@ class ClaudeGridSlot extends WatchUi.Drawable {
         }
     }
 
+    //! Data 07. The black knockout disc goes down first, so the dial cuts cleanly into the minute
+    //! digits (the view draws this slot AFTER the time for that reason). Seconds mode is the
+    //! original live dial; with a field picked, the same tick ring gauges it and the field's
+    //! icon or label and its value sit where "SEC" and the seconds were.
+    private function drawDial(dc as Dc) as Void {
+        dc.setColor(Graphics.COLOR_BLACK, Graphics.COLOR_BLACK);
+        dc.fillCircle(cx, cy, _clearR);
+        if (secondsMode) {
+            var sec = System.getClockTime().sec;
+            GridDraw.tickRing(dc, cx, cy, ringR, (sec / 60.0) * sweep, _fTicks);
+            dc.setColor(labelColor, Graphics.COLOR_TRANSPARENT);
+            GridDraw.text(dc, cx, cy - _DIAL_LABEL_DY, _fLabel, "SEC",
+                Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+            dc.setColor(valueColor, Graphics.COLOR_TRANSPARENT);
+            GridDraw.text(dc, cx, cy + _DIAL_VALUE_DY, _valueFonts[0] as Graphics.FontType,
+                sec.format("%02d"), Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+            return;
+        }
+        GridDraw.tickRing(dc, cx, cy, ringR, frac * sweep, _fTicks);
+        if (!iconChar.equals("") && _fIcon != null) {
+            drawMarker(dc, cx, cy - _DIAL_FIELD_LABEL_DY);
+        } else if (!label.equals("")) {
+            // A model name such as "FABLE" is wider than "SEC": drop to the small label font when
+            // the 24 px one would reach the ticks, and trim only if even that doesn't fit.
+            var y = cy - _DIAL_FIELD_LABEL_DY;
+            var f = _fLabel;
+            if (_fLabelSmall != null && dc.getTextWidthInPixels(label, f) > widthAt(dc, y, f)) {
+                f = _fLabelSmall as Graphics.FontType;
+            }
+            dc.setColor(labelColor, Graphics.COLOR_TRANSPARENT);
+            GridDraw.text(dc, cx, y, f, fitText(dc, label, f, widthAt(dc, y, f), true),
+                Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+        }
+        dc.setColor(valueColor, Graphics.COLOR_TRANSPARENT);
+        drawValue(dc, cy + _DIAL_FIELD_VALUE_DY, value);
+    }
+
     function draw(dc as Dc) as Void {
         if (!isVisible) { return; }
+        if (kind == SlotKind.DIAL) {
+            drawDial(dc);
+            return;
+        }
         var hasIcon = (!iconChar.equals("") && _fIcon != null);
         var stacked = !valueTop.equals("");
 

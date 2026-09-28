@@ -1,7 +1,8 @@
 <resources xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://developer.garmin.com/downloads/connect-iq/resources.xsd">
     <!--
-      Native on-device watch face editor config (API 5.1.0). Seven complication slots whose
-      ids match the Iron Grit "Data" numbers (07 is the fixed seconds dial, so it is absent).
+      Native on-device watch face editor config (API 5.1.0). Eight complication slots whose
+      ids match the Iron Grit "Data" numbers. Data 07 (the bottom dial) and Data 08 have no default:
+      unset, they show the live seconds and the second time zone.
       allowAny lets the user drop ANY system or Connect IQ complication into a slot (including
       the Claude usage complications published by the "Claude Terminal" companion app). The
       per-slot sensible default type is chosen in code (ClaudeGridView), not here, because
@@ -15,6 +16,7 @@
             <complication id="4" allowAny="true"/>  <!-- Data 04: mid-left ring,  default heart rate -->
             <complication id="5" allowAny="true"/>  <!-- Data 05: mid-right ring, default body battery -->
             <complication id="6" allowAny="true"/>  <!-- Data 06: lower-left,  default pressure     -->
+            <complication id="7" allowAny="true"/>  <!-- Data 07: bottom dial, unset = live seconds -->
             <complication id="8" allowAny="true"/>  <!-- Data 08: lower-right, default temperature  -->
         </data>
         <dataColors>

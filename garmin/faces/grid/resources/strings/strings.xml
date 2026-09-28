@@ -15,6 +15,10 @@
     <string id="altTzAlwaysSub">Over picked field</string>
     <!-- Garmin Connect has room for the full sentence. -->
     <string id="altTzAlwaysLong">Data 08: always show the time-zone clock (even if a complication is picked)</string>
+    <!-- Data 07 dial -->
+    <string id="secAlwaysTitle">Always seconds</string>
+    <string id="secAlwaysSub">Data 07 dial</string>
+    <string id="secAlwaysLong">Data 07: always show the seconds dial (even if a complication is picked)</string>
     <string id="tzNewYork">New York</string>
     <string id="tzChicago">Chicago</string>
     <string id="tzLosAngeles">Los Angeles</string>

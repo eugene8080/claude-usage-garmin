@@ -14,16 +14,18 @@ import Toybox.Weather;
 //! "Claude Grid" - a data face in Roboto Mono built to the HTML layout editor's finalized design.
 //! Big stacked time (solid white hour over a Gradient 1->2 minute), a brand line, a battery arc
 //! on the bezel, a live 60-tick seconds sub-dial, a second time zone (New York, via LocalMoment
-//! so DST is automatic), the date flanking the dial, a curved weekday strip, and six user-editable
-//! complication slots (Data 01-06).
+//! so DST is automatic), the date flanking the dial, a curved weekday strip, and eight
+//! user-editable complication slots (Data 01-08; 07 and 08 are the dial and the time zone).
 //!
-//! Six of the fields (Data 01-06) are complication slots configured with Garmin's native on-device
+//! All eight fields (Data 01-08) are complication slots configured with Garmin's native on-device
 //! editor; the assigned complication's icon + value are drawn at the slot, and the two ring slots
-//! (04/05) also gauge it. The seconds dial (Data 07) is fixed. Data 08 is editable too, but until a
-//! complication is picked for it (or when forced by the AltTzAlways setting) it shows a second time
-//! zone, whose city is a setting (on-watch menu or Garmin Connect).
+//! (04/05) also gauge it. Data 07 is the bottom dial: the live seconds until a complication is
+//! picked for it (or when forced by the SecondsAlways setting), then the same tick ring gauges the
+//! picked field. Data 08 likewise shows a second time zone until a complication is picked for it
+//! (or when forced by AltTzAlways); its city is a setting (on-watch menu or Garmin Connect).
 //! Accent and data colours are editable natively; the rest of the palette is baked from the editor.
-//! On the live face, touch-and-hold on a slot launches its complication's app (launchComplicationAt).
+//! On the live face, touch-and-hold on a slot launches its complication's app; the battery arc and
+//! the date / weekday strip launch too (launchComplicationAt).
 class ClaudeGridView extends WatchUi.WatchFace {
 
     // --- palette (from the layout editor) ---------------------------------------------------
@@ -63,6 +65,7 @@ class ClaudeGridView extends WatchUi.WatchFace {
 
     private var _altIndex as Number = 0;         // Data 08 time-zone city (AltTz index)
     private var _altAlways as Boolean = false;   // Data 08 shows the clock even if a comp is picked
+    private var _secAlways as Boolean = false;   // Data 07 shows the seconds even if a comp is picked
 
     private var _alarmChar as String = "";       // Tabler alarm glyph
 
@@ -140,6 +143,9 @@ class ClaudeGridView extends WatchUi.WatchFace {
             [4, SlotKind.RING, 0.139, 0.500, ringR, 6, false, Complications.COMPLICATION_TYPE_HEART_RATE],
             [5, SlotKind.RING, 0.861, 0.500, ringR, 6, false, Complications.COMPLICATION_TYPE_BODY_BATTERY],
             [6, SlotKind.CHIP, 0.177, 0.722, 0,     0, false, Complications.COMPLICATION_TYPE_CURRENT_WEATHER],
+            // Data 07: the bottom dial. NO seeded default - while nothing is picked it is the live
+            // seconds dial, exactly as before it was editable.
+            [7, SlotKind.DIAL, 0.500, 0.832, DIAL_R, 0, false, null],
             // Data 08: NO seeded default - while nothing is picked it shows the time-zone clock
             // (see refreshAltTz). Same centre the fixed alt-tz field used, so the look is unchanged.
             [8, SlotKind.CHIP, 0.823, 0.722, 0,     0, false, null]
@@ -154,6 +160,7 @@ class ClaudeGridView extends WatchUi.WatchFace {
             var s = specs[i];
             var uid = s[0] as Number;
             var isRing = (s[1] == SlotKind.RING);
+            var isDial = (s[1] == SlotKind.DIAL);
             var isHoriz = s[6] as Boolean;
             var slotX = (s[2] as Float) * w;
             // Width budget that respects the round bezel: half-chord to the near edge.
@@ -166,8 +173,11 @@ class ClaudeGridView extends WatchUi.WatchFace {
             // Data 01 sits INSIDE the battery arc, whose dashes (inner radius ~209 px) close in
             // to ~180 px wide at the text's top edge - narrower than the bezel chord above.
             if (isHoriz && maxW > 180) { maxW = 180; }
+            // Data 07's text sits inside the tick ring; the slot also fits each row to that circle.
+            if (isDial) { maxW = 2 * ((s[4] as Number) - 10); }
 
             // Largest -> smallest; the slot picks the first that fits the row (ClaudeGridSlot).
+            // (Data 07's first font is also the seconds font, the 30 px one it always used.)
             var valueFonts = isRing ? [_fBig, _fMed, _fSmall]
                                     : (isHoriz ? [_fSmall, _fTiny] : [_fMed, _fSmall, _fTiny]);
             var slot = new ClaudeGridSlot({
@@ -185,10 +195,16 @@ class ClaudeGridView extends WatchUi.WatchFace {
                 :fStacked => _fSmall,
                 :valueMaxW => maxW,
                 // lets the slot fit each text row to the round screen at that row's height
-                :screen => [w / 2, h / 2, w / 2]
+                :screen => [w / 2, h / 2, w / 2],
+                // Data 07 only: the tick-ring font, a smaller label font for names like "FABLE",
+                // and the knockout disc it clears into the minute digits
+                :fTicks => _fTicks,
+                :fLabelSmall => _fTiny,
+                :clearR => DIAL_CLEAR_R
             });
             slot.labelColor = TEXT3;
-            slot.valueColor = isRing ? TEXT2 : _dataColor;   // rings=white, chips=Text 1
+            // rings = white, chips = Text 1, the dial = the accent (as the seconds always were)
+            slot.valueColor = isRing ? TEXT2 : (isDial ? _accentColor : _dataColor);
             _slots.add(slot);
             if (s[7] != null) {
                 _slotIds[uid] = new Complications.Id(s[7] as Complications.Type);
@@ -198,7 +214,7 @@ class ClaudeGridView extends WatchUi.WatchFace {
 
     //! Write the face's per-slot defaults into the SAVED watch-face config, for slots that are still
     //! unset. Garmin's on-watch editor only knows the saved config: a fresh one has every slot
-    //! empty, which the editor shows - and saves - as Battery, so the first edit turned all seven
+    //! empty, which the editor shows - and saves - as Battery, so the first edit turned all the
     //! fields into Battery (reproduced in the simulator's Watch Face Editor). Seeding makes the
     //! editor open on exactly what the face was showing. Slots the user has set are never touched,
     //! and Data 08 has no default (its unset state IS the time-zone clock), so it isn't seeded.
@@ -289,10 +305,13 @@ class ClaudeGridView extends WatchUi.WatchFace {
 
             if (t == Complications.COMPLICATION_TYPE_HIGH_LOW_TEMPERATURE) {
                 var parts = splitTwo(vs);
-                if (parts != null) {
+                if (parts != null && slot.kind == SlotKind.CHIP && !slot.horizontal) {
                     slot.valueTop = withDegree(parts[0]);
                     slot.valueBot = withDegree(parts[1]);
                     slot.value = "";
+                } else if (parts != null) {
+                    // A ring, the dial or Data 01 draws one line: "H30°/L28°", auto-fitted.
+                    slot.value = withDegree(parts[0]) + "/" + withDegree(parts[1]);
                 } else {
                     slot.value = withDegree(vs);
                 }
@@ -309,7 +328,7 @@ class ClaudeGridView extends WatchUi.WatchFace {
             } else {
                 slot.value = vs;
             }
-            if (slot.kind == SlotKind.RING) {
+            if (slot.kind == SlotKind.RING || slot.kind == SlotKind.DIAL) {
                 slot.frac = ringFrac(cid, c.value, c.longLabel);
             }
         } catch (e) {
@@ -331,6 +350,7 @@ class ClaudeGridView extends WatchUi.WatchFace {
         _dataColor = ((data != null) && (data.color != null)) ? data.color as Number : _DEFAULT_DATA;
         for (var i = 0; i < _slots.size(); i++) {
             if (_slots[i].kind == SlotKind.CHIP) { _slots[i].valueColor = _dataColor; }
+            else if (_slots[i].kind == SlotKind.DIAL) { _slots[i].valueColor = _accentColor; }
         }
 
         var comps = config.complicationSettings;
@@ -383,16 +403,25 @@ class ClaudeGridView extends WatchUi.WatchFace {
 
     // ---- hold-to-launch (live face) ----
 
-    //! Touch-and-hold (ClaudeGridDelegate.onPress): exit to the app that owns the complication in
-    //! the slot under (x, y) - the Claude Usage app for a Claude meter, the watch's own app for a
-    //! native field. Returns false, leaving the hold to the system, when no slot is hit, the slot
-    //! has no complication, or Data 08 is showing the time-zone clock: that clock is drawn by this
-    //! face, so launching the complication hidden behind it would be a surprise.
+    //! Touch-and-hold (ClaudeGridDelegate.onPress): exit to the app behind whatever is under (x, y).
+    //!  - a slot: the app that owns its complication - Claude Usage for a Claude meter, the watch's
+    //!    own screen for a native field (weather, heart rate, stress, Body Battery...);
+    //!  - the battery arc: whatever it is gauging - Data 01's field, or the system battery;
+    //!  - the date or the weekday strip: the calendar (the native calendar-events complication).
+    //! Returns false, leaving the hold to the system, anywhere else (the time, the brand), on a slot
+    //! with no complication, and while Data 07 shows the seconds or Data 08 the time-zone clock:
+    //! those are drawn by this face, so launching a complication hidden behind them would surprise.
     public function launchComplicationAt(x as Number, y as Number) as Boolean {
+        var id = null;
         var uid = getTappedComplication(x, y);
-        if (uid == null) { return false; }
-        if (uid == 8 && altTzActive()) { return false; }
-        var id = _slotIds[uid];
+        if (uid != null) {
+            if ((uid == 8 && altTzActive()) || (uid == 7 && dialSecondsActive())) { return false; }
+            id = _slotIds[uid];
+        } else if (inBatteryArc(x, y)) {
+            id = arcComplicationId();
+        } else if (inDateArea(x, y)) {
+            id = new Complications.Id(Complications.COMPLICATION_TYPE_CALENDAR_EVENTS);
+        }
         if (id == null) { return false; }
         try {
             Complications.exitTo(id as Complications.Id);
@@ -400,9 +429,52 @@ class ClaudeGridView extends WatchUi.WatchFace {
         } catch (e) {
             // InvalidValueException: the id is not from a launchable app (e.g. its publisher was
             // uninstalled since the slot was set). Nothing to open, so let the system handle it.
-            System.println("hold-to-launch: exitTo failed for slot " + uid.toString());
+            System.println("hold-to-launch: exitTo failed");
             return false;
         }
+    }
+
+    //! On the bezel battery arc: 16 dashes between 122.5 and 57.5 degrees (math angle, 90 = top),
+    //! outer radius = the screen radius, 15 px long (onUpdate's segmentArc call). The band is
+    //! widened to a finger's width, and to 50-130 degrees.
+    private function inBatteryArc(x as Number, y as Number) as Boolean {
+        var ds = System.getDeviceSettings();
+        var cx = ds.screenWidth / 2.0;
+        var cy = ds.screenHeight / 2.0;
+        var dx = x - cx;
+        var dy = cy - y;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < cx - 40 || dist > cx + 4) { return false; }
+        var deg = Math.toDegrees(Math.atan2(dy, dx));
+        return deg >= 50.0 && deg <= 130.0;
+    }
+
+    //! The complication the battery arc is showing: Data 01's when the arc gauges it (battArcFrac),
+    //! otherwise the system battery.
+    private function arcComplicationId() as Complications.Id {
+        var id = _slotIds[1];
+        if (id != null) {
+            var cid = id as Complications.Id;
+            try {
+                var comp = Complications.getComplication(cid);
+                if (isPercentMetric(cid.getType(), comp.longLabel)) { return cid; }
+            } catch (e) {
+            }
+        }
+        return new Complications.Id(Complications.COMPLICATION_TYPE_BATTERY);
+    }
+
+    //! On the month / day flanking the dial (drawDate: each DATE_GAP from centre on the dial's row),
+    //! or on the curved weekday strip along the bottom bezel (drawWeekCurved).
+    private function inDateArea(x as Number, y as Number) as Boolean {
+        var ds = System.getDeviceSettings();
+        var cx = ds.screenWidth / 2;
+        var h = ds.screenHeight;
+        var dialY = (h * 0.832).toNumber();
+        var off = (x > cx) ? (x - cx) : (cx - x);
+        var dateRow = (y >= dialY - 26 && y <= dialY + 26) && off >= DIAL_CLEAR_R && off <= DATE_GAP + 44;
+        var weekStrip = (y >= (h * 0.915).toNumber()) && off <= 120;
+        return dateRow || weekStrip;
     }
 
     //! Re-read the slots showing current weather. The weather complication's VALUE is the
@@ -436,7 +508,7 @@ class ClaudeGridView extends WatchUi.WatchFace {
         // the system battery when Data 01 isn't a 0-100 metric. Sweeps in with the rings on wake.
         GridDraw.segmentArc(dc, cx, cy, cx, 122.5, 57.5, 16, battArcFrac() * ringSweep, 10, 15, _fArc);
 
-        // The seven editable slots (skip the one the editor is currently pulsing). Data 08 is
+        // The editable slots (skip the one the editor is currently pulsing). Data 08 is
         // re-filled with the time-zone clock first when that's what it should show.
         refreshAltTz();
         for (var i = 0; i < _slots.size(); i++) {
@@ -444,6 +516,7 @@ class ClaudeGridView extends WatchUi.WatchFace {
             slot.sweep = ringSweep;
             slot.lowPower = _lowPower;
             if (_editingSlot && _selectedUid != null && slot.uid == _selectedUid) { continue; }
+            if (slot.kind == SlotKind.DIAL) { continue; }   // Data 07: after the time, below
             slot.draw(dc);
         }
 
@@ -462,7 +535,7 @@ class ClaudeGridView extends WatchUi.WatchFace {
         if (_lowPower) {
             drawDateCollapsed(dc, cx, dialY);
         } else {
-            drawSeconds(dc, cx, dialY, DIAL_R);
+            drawDial(dc);
             drawDate(dc, cx, dialY);
         }
         drawWeekCurved(dc, cx, cy, (h * 0.971).toNumber() - cy);
@@ -592,6 +665,11 @@ class ClaudeGridView extends WatchUi.WatchFace {
     public function readSettings() as Void {
         _altIndex = GridSettings.cityIndex();
         _altAlways = GridSettings.readAlways();
+        _secAlways = GridSettings.readSecondsAlways();
+        // Same for Data 07 leaving seconds mode.
+        if (!dialSecondsActive() && _slotIds[7] != null) {
+            updateSlotText(7);
+        }
         // Leaving clock mode with a complication already picked: repopulate its icon/value now,
         // rather than waiting for its next change callback.
         if (!altTzActive() && _slotIds[8] != null) {
@@ -602,6 +680,12 @@ class ClaudeGridView extends WatchUi.WatchFace {
     //! The clock shows when forced by the setting, or while no complication is picked for Data 08.
     private function altTzActive() as Boolean {
         return _altAlways || (_slotIds[8] == null);
+    }
+
+    //! Data 07 is the live seconds dial when forced by the setting, or while no complication is
+    //! picked for it.
+    private function dialSecondsActive() as Boolean {
+        return _secAlways || (_slotIds[7] == null);
     }
 
     //! Put the time-zone clock into the Data 08 slot (the city code, e.g. "LDN", over HH:MM in the
@@ -631,18 +715,15 @@ class ClaudeGridView extends WatchUi.WatchFace {
         dc.fillCircle(cx, cy, DIAL_CLEAR_R);
     }
 
-    //! Data 07: the fixed live seconds dial (60-tick gradient ring), not an editable slot.
-    private function drawSeconds(dc as Dc, cx as Numeric, cy as Numeric, r as Numeric) as Void {
-        var sec = System.getClockTime().sec;
-        GridDraw.tickRing(dc, cx, cy, r, (sec / 60.0) * ringSweep, _fTicks);
-        dc.setColor(TEXT3, Graphics.COLOR_TRANSPARENT);
-        var sf = (_fSmall != null) ? _fSmall : Graphics.FONT_XTINY;
-        GridDraw.text(dc, cx, cy - 24, sf, "SEC",
-            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
-        dc.setColor(_accentColor, Graphics.COLOR_TRANSPARENT);
-        var vf = (_fMed != null) ? _fMed : Graphics.FONT_MEDIUM;
-        GridDraw.text(dc, cx, cy + 11, vf, sec.format("%02d"),
-            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+    //! Data 07, the bottom dial (ClaudeGridSlot draws both modes, so the editor can pulse it like
+    //! any other slot). Skipped while the editor is pulsing it, as the other slots are.
+    private function drawDial(dc as Dc) as Void {
+        var dial = slotFor(7);
+        if (dial == null) { return; }
+        if (_editingSlot && _selectedUid != null && _selectedUid == 7) { return; }
+        dial.secondsMode = dialSecondsActive();
+        dial.sweep = ringSweep;
+        dial.draw(dc);
     }
 
     //! Month and day flanking the seconds dial (high-power).
@@ -693,9 +774,10 @@ class ClaudeGridView extends WatchUi.WatchFace {
     }
 
     //! Always-on: redraw only the seconds dial each second, clipped so it doesn't smear. Skipped in
-    //! ambient mode where the dial is hidden.
+    //! ambient mode where the dial is hidden, and when Data 07 gauges a picked field instead (its
+    //! value changes arrive through onComplicationChange).
     public function onPartialUpdate(dc as Dc) as Void {
-        if (_lowPower) { return; }
+        if (_lowPower || !dialSecondsActive()) { return; }
         var w = dc.getWidth();
         var h = dc.getHeight();
         if (dc has :setAntiAlias) { dc.setAntiAlias(true); }
@@ -703,10 +785,9 @@ class ClaudeGridView extends WatchUi.WatchFace {
         var scy = (h * 0.832).toNumber();
         var pad = DIAL_CLEAR_R + 1;
         dc.setClip(scx - pad, scy - pad, 2 * pad, 2 * pad);
-        // Clear only the knockout DISC, not the whole clip square: the square's corners hold
-        // minute-digit pixels outside the disc, which must survive a seconds-only refresh.
-        knockDial(dc, scx, scy);
-        drawSeconds(dc, scx, scy, DIAL_R);
+        // The dial clears only its knockout DISC, not the whole clip square: the square's corners
+        // hold minute-digit pixels outside the disc, which must survive a seconds-only refresh.
+        drawDial(dc);
         drawMeshOverlay(dc, w, h);   // clipped to the dial, so only its tiles' overlap is touched
         dc.clearClip();
     }

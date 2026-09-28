@@ -85,7 +85,7 @@ Three Connect IQ projects, all under [`garmin/`](garmin/), put the same usage nu
 | Project | What it is |
 | --- | --- |
 | [`garmin/watch-app/`](garmin/watch-app/README.md) | **Claude Usage** — a glance showing the `5H` / `1W` / per-model meters with their reset times, and the **publisher**: it receives the numbers from the phone and republishes them as three watch **complications** that faces can show. |
-| [`garmin/faces/grid/`](garmin/faces/grid/editor/README.md) | **Claude Grid** — an Iron Grit–style data face: a big stacked time, battery arc, seconds dial and **seven editable data fields** that take *any* complication. |
+| [`garmin/faces/grid/`](garmin/faces/grid/editor/README.md) | **Claude Grid** — an Iron Grit–style data face: a big stacked time, battery arc, seconds dial and **eight editable data fields** that take *any* complication. |
 | [`garmin/faces/terminal/`](garmin/faces/terminal/README.md) | **Claude Terminal** — a CLI-styled face: a prompt line, the time, the date, the three Claude meters as terminal rows with bars, percentages and reset times, and a battery bar. |
 
 Two more folders sit beside them: [`garmin/shared/`](garmin/shared/README.md) holds what the
@@ -117,14 +117,18 @@ is why the watch app must be installed (and opened once) for the faces to show C
 
 ### Claude Grid
 
-- **Seven data fields you set on the watch** with Garmin's own face editor (hold the face →
+- **Eight data fields you set on the watch** with Garmin's own face editor (hold the face →
   customise): the Claude meters, heart rate, body battery, weather, steps, sunrise/sunset,
   respiration, VO2 max, training status… Every slot accepts *any* complication, including other
   Connect IQ apps' — e.g. **[QuoteGlance](https://apps.garmin.com/en-US/apps/da6bba83-ce69-47cf-9353-85beba4bbe31)**
   stock quotes (shown as the price, so it fits a corner).
 - **Hold a data field to open its app** (Garmin's hold-to-launch): a Claude meter opens Claude
-  Usage; a built-in field (weather, heart rate…) opens the watch's own screen for it, where the
-  watch offers one. Holding the time, the dial or the date still does what it always did.
+  Usage; a built-in field (weather, heart rate, stress, Body Battery…) opens the watch's own screen
+  for it, where the watch offers one. The battery arc opens whatever it gauges, and the date or
+  the weekday strip opens the calendar. Holding the time still does what it always did.
+- **Data 07**, the dial at the bottom, is the live seconds until you pick a field for it — e.g.
+  the Claude Fable meter — and then its tick ring gauges that field. *Always seconds* in the face
+  settings (on the watch or in Garmin Connect) brings the seconds back.
 - **Current Weather** shows the temperature with the **feels-like** temperature (`FL40°`) under
   it — Garmin has no feels-like complication, so the face reads it from the weather data itself.
 - **Data 08** shows a **second time zone** until you pick a complication for it, labelled with
@@ -144,8 +148,8 @@ is why the watch app must be installed (and opened once) for the faces to show C
   red at 20%).
 - **Weather** at the top, like Rad Lad: the current condition icon (sun / moon by time of day),
   the temperature and the feels-like temperature (`32° FL40°`), in the watch's units.
-- **Hold a meter row** to open Claude Usage, or **hold the weather line** to open the watch's
-  weather view (Garmin's hold-to-launch).
+- **Hold a meter row** to open Claude Usage; hold the weather line, the date or the battery bar
+  to open the watch's weather, calendar or battery screen (Garmin's hold-to-launch).
 - Settings — **on the watch** (hold the face → Settings) and in Garmin Connect for a store
   install: the **prompt text** (typed on the watch with its own keyboard — make the top line say
   whatever you like), the **Retro tube** theme (**the default**: green phosphor on a dark-green

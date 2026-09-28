@@ -3,8 +3,9 @@ import Toybox.Lang;
 import Toybox.WatchUi;
 
 //! On-watch settings for Claude Grid (returned from ClaudeGridApp.getSettingsView): the Data 08
-//! time-zone city and the "always the clock" switch. Writes the same Application.Properties the
-//! Garmin Connect settings (resources/settings/settings.xml) write, so either route works.
+//! time-zone city, its "always the clock" switch, and Data 07's "always seconds" switch. Writes the
+//! same Application.Properties the Garmin Connect settings (resources/settings/settings.xml)
+//! write, so either route works.
 class ClaudeGridSettingsMenu extends WatchUi.Menu2 {
 
     public function initialize() {
@@ -12,6 +13,8 @@ class ClaudeGridSettingsMenu extends WatchUi.Menu2 {
         addItem(new WatchUi.MenuItem(Rez.Strings.altTzCityTitle, GridSettings.cityName(), :city, null));
         addItem(new WatchUi.ToggleMenuItem(Rez.Strings.altTzAlwaysTitle, Rez.Strings.altTzAlwaysSub,
             :always, GridSettings.readAlways(), null));
+        addItem(new WatchUi.ToggleMenuItem(Rez.Strings.secAlwaysTitle, Rez.Strings.secAlwaysSub,
+            :secAlways, GridSettings.readSecondsAlways(), null));
     }
 }
 
@@ -29,6 +32,11 @@ module GridSettings {
 
     function readAlways() as Boolean {
         var v = Application.Properties.getValue("AltTzAlways");
+        return (v instanceof Lang.Boolean) ? (v as Boolean) : false;
+    }
+
+    function readSecondsAlways() as Boolean {
+        var v = Application.Properties.getValue("SecondsAlways");
         return (v instanceof Lang.Boolean) ? (v as Boolean) : false;
     }
 }
@@ -49,6 +57,8 @@ class ClaudeGridSettingsDelegate extends WatchUi.Menu2InputDelegate {
             WatchUi.pushView(picker, new ClaudeGridCityDelegate(_menu), WatchUi.SLIDE_LEFT);
         } else if (id == :always) {
             Application.Properties.setValue("AltTzAlways", (item as WatchUi.ToggleMenuItem).isEnabled());
+        } else if (id == :secAlways) {
+            Application.Properties.setValue("SecondsAlways", (item as WatchUi.ToggleMenuItem).isEnabled());
         }
     }
 }
