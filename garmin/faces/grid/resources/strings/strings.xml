@@ -15,6 +15,26 @@
     <string id="altTzAlwaysSub">Over picked field</string>
     <!-- Garmin Connect has room for the full sentence. -->
     <string id="altTzAlwaysLong">Data 08: always show the time-zone clock (even if a complication is picked)</string>
+    <!-- Data 07 dial -->
+    <string id="secAlwaysTitle">Always seconds</string>
+    <string id="secAlwaysSub">Data 07 dial</string>
+    <string id="secAlwaysLong">Data 07: always show the seconds dial (even if a complication is picked)</string>
+    <!-- Per-slot face-computed fields: data Garmin offers no complication for -->
+    <string id="fieldsTitle">Data fields</string>
+    <string id="fieldsSub">Humidity, wind, rain...</string>
+    <string id="fieldEditor">Editor's pick</string>
+    <string id="fieldHumidity">Humidity</string>
+    <string id="fieldWind">Wind speed</string>
+    <string id="fieldPrecip">Chance of rain</string>
+    <string id="fieldBattDays">Battery (days)</string>
+    <string id="slot1Title">Data 01 (top)</string>
+    <string id="slot2Title">Data 02 (upper left)</string>
+    <string id="slot3Title">Data 03 (upper right)</string>
+    <string id="slot4Title">Data 04 (left ring)</string>
+    <string id="slot5Title">Data 05 (right ring)</string>
+    <string id="slot6Title">Data 06 (lower left)</string>
+    <string id="slot7Title">Data 07 (bottom dial)</string>
+    <string id="slot8Title">Data 08 (lower right)</string>
     <string id="tzNewYork">New York</string>
     <string id="tzChicago">Chicago</string>
     <string id="tzLosAngeles">Los Angeles</string>

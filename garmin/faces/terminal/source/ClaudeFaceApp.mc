@@ -20,9 +20,11 @@ class ClaudeFaceApp extends Application.AppBase {
 
     private var _view as ClaudeFaceView? = null;
 
+    //! The delegate handles touch-and-hold on a meter row or the weather line (hold-to-launch).
     public function getInitialView() as [Views] or [Views, InputDelegates] {
-        _view = new $.ClaudeFaceView();
-        return [_view as ClaudeFaceView];
+        var view = new $.ClaudeFaceView();
+        _view = view;
+        return [view, new $.ClaudeFaceDelegate(view)];
     }
 
     //! On-watch settings (hold the face > Settings): prompt text, theme, scanlines, show seconds.

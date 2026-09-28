@@ -88,6 +88,23 @@ ICONS = [
     0xec82,   # run                 -> VO2MAX_RUN
     0xea36,   # bike                -> VO2MAX_BIKE
     0xeb43,   # trending-up         -> TRAINING_STATUS
+    # Face-computed fields (the per-slot "field" setting; Garmin has no complication for them):
+    0xee82,   # droplet-half        -> HUMIDITY (droplet itself is Pulse Ox)
+    0xebf1,   # umbrella            -> chance of rain
+    0xea25,   # arrow-up            -> wind: the way the air moves, N (a wind FROM the south)
+    0xea24,   # arrow-up-right      -> ... NE
+    0xea1f,   # arrow-right         -> ... E
+    0xea15,   # arrow-down-right    -> ... SE
+    0xea16,   # arrow-down          -> ... S
+    0xea13,   # arrow-down-left     -> ... SW
+    0xea19,   # arrow-left          -> ... W
+    0xea22,   # arrow-up-left       -> ... NW
+    # Battery drawn at its charge level, like Garmin's own battery icon (battery = empty):
+    0xea2f,   # battery-1           -> 1 bar
+    0xea30,   # battery-2           -> 2 bars
+    0xea31,   # battery-3           -> 3 bars
+    0xea32,   # battery-4           -> full
+    0xea33,   # battery-charging    -> on the charger
 ]
 # CIQ addresses font glyphs by 16-bit code only, so anything Tabler files above U+FFFF is
 # re-filed under a free BMP private-use code (source glyph -> emitted id). The face must ask for

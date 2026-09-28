@@ -33,3 +33,7 @@ __pycache__/
 
 # Kotlin compiler session cache (created by Gradle builds)
 .kotlin/
+
+# Garmin's watch-face icons, cached by garmin/faces/grid/editor/build_icon_picker.py --embed-garmin.
+# Garmin's artwork: never commit it (the committed icon-picker.html links to Garmin's site instead).
+garmin/faces/grid/editor/.garmin-icons/

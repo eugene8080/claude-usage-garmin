@@ -2,13 +2,14 @@
 <iq:manifest xmlns:iq="http://www.garmin.com/xml/connectiq" version="3">
     <!--
       "Claude Grid" - an Iron Grit-style data face: big stacked time, date, weekday strip, a
-      battery arc, a live seconds sub-dial, and seven user-editable data fields, all in Chakra
+      battery arc, a live seconds sub-dial, and eight user-editable data fields, all in Chakra
       Petch. A separate app from the "Claude Terminal" face so either can be worn and this one
       is fully revertable.
 
-      The seven data fields (Data 01-06, 08) are complication slots the user assigns with
-      Garmin's native on-device watch face editor (API 5.1.0); Data 07 is the fixed seconds
-      dial. Accent and data colours are also editable natively. Requires ComplicationSubscriber.
+      The eight data fields (Data 01-08) are complication slots the user assigns with
+      Garmin's native on-device watch face editor (API 5.1.0); Data 07 is the live seconds
+      dial until a field is picked for it. Accent and data colours are also editable natively.
+      Requires ComplicationSubscriber.
     -->
     <iq:application
         entry="ClaudeGridApp"

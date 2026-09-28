@@ -6,4 +6,18 @@
     <!-- false: the time-zone clock shows until a complication is picked for Data 08 in the editor.
          true:  always the clock, even if a complication was picked (the way back to the clock). -->
     <property id="AltTzAlways" type="boolean">false</property>
+    <!-- Data 07 (bottom dial), the same pattern: false = the live seconds until a complication is
+         picked for it; true = always the seconds (the way back from a picked field). -->
+    <property id="SecondsAlways" type="boolean">false</property>
+    <!-- Per-slot face-computed field, for data Garmin offers no complication for. 0 = show the
+         watch face editor's pick (default); 1 humidity, 2 wind, 3 chance of rain, 4 battery in
+         days. Indexes GridField (ClaudeGridSettings.mc) - keep settings.xml in the same order. -->
+    <property id="Data1Field" type="number">0</property>
+    <property id="Data2Field" type="number">0</property>
+    <property id="Data3Field" type="number">0</property>
+    <property id="Data4Field" type="number">0</property>
+    <property id="Data5Field" type="number">0</property>
+    <property id="Data6Field" type="number">0</property>
+    <property id="Data7Field" type="number">0</property>
+    <property id="Data8Field" type="number">0</property>
 </properties>

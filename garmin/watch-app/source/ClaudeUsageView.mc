@@ -2,7 +2,9 @@ import Toybox.Graphics;
 import Toybox.Lang;
 import Toybox.WatchUi;
 
-//! The full-screen app view, reached by opening the app from the glance or the app list.
+//! The full-screen app view, reached by opening the app from the glance or the app list, or by
+//! holding one of the Claude meters on a watch face (the faces' hold-to-launch, which calls
+//! Complications.exitTo on our complication).
 //!
 //! It shows what the glance cannot fit: the countdown to each window's reset. Round display,
 //! so everything is centre-justified and the rows are inset from the edges - text flush to

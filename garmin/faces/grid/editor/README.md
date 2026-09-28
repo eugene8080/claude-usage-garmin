@@ -59,6 +59,29 @@ generator:
 python build_editor.py
 ```
 
+## Icon picker
+**`icon-picker.html`** puts every icon the face draws next to Garmin's own watch-face icon for
+the same field, from Garmin's [icon article](https://support.garmin.com/en-HK/?faq=agZJiZRjhX2adgWkBVOHI9).
+Open it in a browser, tap the icon you want on each row, then **Copy picks** and paste the text
+into the chat. Picks are remembered in that browser. The row numbers are permanent: new rows are
+only ever appended, so an old list of picks still means the same fields.
+
+Garmin's icons are Garmin's artwork, so this public repo never stores them. The committed page
+**loads them from Garmin's site**, which needs a connection and a viewer that allows images from
+other sites. The Claude app's file viewer doesn't, and there each Garmin tile shows Garmin's text
+description instead. For those viewers, build a private copy with the icons embedded, outside the
+repo:
+
+```
+python build_icon_picker.py                                  # -> icon-picker.html (committed)
+python build_icon_picker.py --embed-garmin <path outside the repo>.html [--artifact]
+```
+
+`--embed-garmin` caches Garmin's PNGs in `.garmin-icons/` (gitignored) and refuses any output
+path inside the repo. `--artifact` leaves out the document wrapper for publishing as a claude.ai
+Artifact. Our icons are rendered from `../tools/tabler-icons.ttf`; the script's row list restates
+which glyph the face draws for each field, so update it when an icon changes.
+
 ## Naming (Iron Grit "Data Position" system)
 Data 01 = top (inside the battery arc) · 02/04/06 = left column · 03/05/08 = right column ·
 Data 07 = bottom seconds dial · plus Time, Date and the curved Week strip. (This matches the face

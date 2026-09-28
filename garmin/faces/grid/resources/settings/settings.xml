@@ -23,4 +23,79 @@
     <setting propertyKey="@Properties.AltTzAlways" title="@Strings.altTzAlwaysLong">
         <settingConfig type="boolean" />
     </setting>
+    <setting propertyKey="@Properties.SecondsAlways" title="@Strings.secAlwaysLong">
+        <settingConfig type="boolean" />
+    </setting>
+    <setting propertyKey="@Properties.Data1Field" title="@Strings.slot1Title">
+        <settingConfig type="list">
+            <listEntry value="0">@Strings.fieldEditor</listEntry>
+            <listEntry value="1">@Strings.fieldHumidity</listEntry>
+            <listEntry value="2">@Strings.fieldWind</listEntry>
+            <listEntry value="3">@Strings.fieldPrecip</listEntry>
+            <listEntry value="4">@Strings.fieldBattDays</listEntry>
+        </settingConfig>
+    </setting>
+    <setting propertyKey="@Properties.Data2Field" title="@Strings.slot2Title">
+        <settingConfig type="list">
+            <listEntry value="0">@Strings.fieldEditor</listEntry>
+            <listEntry value="1">@Strings.fieldHumidity</listEntry>
+            <listEntry value="2">@Strings.fieldWind</listEntry>
+            <listEntry value="3">@Strings.fieldPrecip</listEntry>
+            <listEntry value="4">@Strings.fieldBattDays</listEntry>
+        </settingConfig>
+    </setting>
+    <setting propertyKey="@Properties.Data3Field" title="@Strings.slot3Title">
+        <settingConfig type="list">
+            <listEntry value="0">@Strings.fieldEditor</listEntry>
+            <listEntry value="1">@Strings.fieldHumidity</listEntry>
+            <listEntry value="2">@Strings.fieldWind</listEntry>
+            <listEntry value="3">@Strings.fieldPrecip</listEntry>
+            <listEntry value="4">@Strings.fieldBattDays</listEntry>
+        </settingConfig>
+    </setting>
+    <setting propertyKey="@Properties.Data4Field" title="@Strings.slot4Title">
+        <settingConfig type="list">
+            <listEntry value="0">@Strings.fieldEditor</listEntry>
+            <listEntry value="1">@Strings.fieldHumidity</listEntry>
+            <listEntry value="2">@Strings.fieldWind</listEntry>
+            <listEntry value="3">@Strings.fieldPrecip</listEntry>
+            <listEntry value="4">@Strings.fieldBattDays</listEntry>
+        </settingConfig>
+    </setting>
+    <setting propertyKey="@Properties.Data5Field" title="@Strings.slot5Title">
+        <settingConfig type="list">
+            <listEntry value="0">@Strings.fieldEditor</listEntry>
+            <listEntry value="1">@Strings.fieldHumidity</listEntry>
+            <listEntry value="2">@Strings.fieldWind</listEntry>
+            <listEntry value="3">@Strings.fieldPrecip</listEntry>
+            <listEntry value="4">@Strings.fieldBattDays</listEntry>
+        </settingConfig>
+    </setting>
+    <setting propertyKey="@Properties.Data6Field" title="@Strings.slot6Title">
+        <settingConfig type="list">
+            <listEntry value="0">@Strings.fieldEditor</listEntry>
+            <listEntry value="1">@Strings.fieldHumidity</listEntry>
+            <listEntry value="2">@Strings.fieldWind</listEntry>
+            <listEntry value="3">@Strings.fieldPrecip</listEntry>
+            <listEntry value="4">@Strings.fieldBattDays</listEntry>
+        </settingConfig>
+    </setting>
+    <setting propertyKey="@Properties.Data7Field" title="@Strings.slot7Title">
+        <settingConfig type="list">
+            <listEntry value="0">@Strings.fieldEditor</listEntry>
+            <listEntry value="1">@Strings.fieldHumidity</listEntry>
+            <listEntry value="2">@Strings.fieldWind</listEntry>
+            <listEntry value="3">@Strings.fieldPrecip</listEntry>
+            <listEntry value="4">@Strings.fieldBattDays</listEntry>
+        </settingConfig>
+    </setting>
+    <setting propertyKey="@Properties.Data8Field" title="@Strings.slot8Title">
+        <settingConfig type="list">
+            <listEntry value="0">@Strings.fieldEditor</listEntry>
+            <listEntry value="1">@Strings.fieldHumidity</listEntry>
+            <listEntry value="2">@Strings.fieldWind</listEntry>
+            <listEntry value="3">@Strings.fieldPrecip</listEntry>
+            <listEntry value="4">@Strings.fieldBattDays</listEntry>
+        </settingConfig>
+    </setting>
 </settings>

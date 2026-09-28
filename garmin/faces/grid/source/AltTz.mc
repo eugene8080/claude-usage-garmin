@@ -8,8 +8,8 @@ import Toybox.Time.Gregorian;
 //! saving, so the clock stays right year-round with nothing to maintain. UTC is the one entry
 //! with no location and is read from Gregorian.utcInfo instead.
 //!
-//! LAT / LON / names() share one index, which is also the AltTzCity property value and the
-//! settings.xml listEntry value - keep all four in the same order.
+//! LAT / LON / CODES / names() share one index, which is also the AltTzCity property value and
+//! the settings.xml listEntry value - keep all five in the same order.
 module AltTz {
 
     const LAT = [40.7128, 41.8781, 34.0522, 51.5074, 48.8566, 47.3769, 25.2048, 19.0760,
@@ -17,6 +17,10 @@ module AltTz {
     const LON = [-74.0060, -87.6298, -118.2437, -0.1278, 2.3522, 8.5417, 55.2708, 72.8777,
                  103.8198, 114.1694, 121.4737, 139.6503, 151.2093, 174.7633, 0.0];
     const UTC_INDEX = 14;
+    //! The short city code the face shows above the time (the menus use the full names()).
+    //! Upper case only: the face's bitmap fonts carry no lower case. DUB is Dubai.
+    const CODES = ["NY", "CHI", "LA", "LDN", "PAR", "ZUR", "DUB", "MUM",
+                   "SG", "HK", "SHG", "TOK", "SYD", "AUC", "UTC"];
 
     //! City labels for the on-watch menu (the phone settings use the same string ids).
     function names() as Array<ResourceId> {
@@ -25,6 +29,11 @@ module AltTz {
                 Rez.Strings.tzDubai, Rez.Strings.tzMumbai, Rez.Strings.tzSingapore,
                 Rez.Strings.tzHongKong, Rez.Strings.tzShanghai, Rez.Strings.tzTokyo,
                 Rez.Strings.tzSydney, Rez.Strings.tzAuckland, Rez.Strings.tzUtc];
+    }
+
+    //! The city code for a (clamped) index, e.g. "LDN".
+    function code(index as Number) as String {
+        return CODES[clampIndex(index)] as String;
     }
 
     //! Clamp a stored property value to a valid index (a stale or hand-edited value can't crash).
