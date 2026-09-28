@@ -9,10 +9,17 @@ GRAY = (158, 158, 158, 255)
 font = ImageFont.truetype(TTF, 88)
 
 def icon_datauri(cp):
+    """A face icon as the face draws it: the solid version of the Tabler glyph, from the same
+    generator that builds them into cg_icon (../../../shared/tools/solid_icons.py), in grey."""
+    import sys
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "shared", "tools"))
+    import solid_icons
+    cov, _adv = solid_icons.render(cp, TTF, 88, solid_icons.mode_for(cp))
     img = Image.new("RGBA", (104, 104), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img); ch = chr(cp)
-    bb = d.textbbox((0, 0), ch, font=font); w, h = bb[2]-bb[0], bb[3]-bb[1]
-    d.text(((104-w)/2-bb[0], (104-h)/2-bb[1]), ch, font=font, fill=GRAY)
+    glyph = Image.new("RGBA", cov.size, GRAY[:3] + (0,))
+    glyph.putalpha(cov)
+    bb = cov.getbbox()
+    img.alpha_composite(glyph, ((104 - (bb[0] + bb[2])) // 2, (104 - (bb[1] + bb[3])) // 2))
     buf = BytesIO(); img.save(buf, "PNG")
     return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
 

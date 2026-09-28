@@ -12,8 +12,8 @@ watch-face icon for the same field, as a tap-to-choose page whose picks come out
            out the <!doctype>/<html>/<head> wrapper, which the Artifact publisher adds itself.
            Do not commit an embedded copy: the icons are Garmin's artwork.
 
-Our icons are rendered from ../tools/tabler-icons.ttf, the source of the face's cg_icon font
-(../tools/build_fonts_grid.py); the solid weather set comes from ../../../shared/tools/weather_icons.py,
+Our icons are the solid versions the face draws (../../../shared/tools/solid_icons.py, from
+../tools/tabler-icons.ttf - the same step that builds them into cg_icon, ../tools/build_fonts_grid.py); the solid weather set comes from ../../../shared/tools/weather_icons.py,
 the same generator that builds those glyphs into the font. The ROWS
 below restate which glyph the face draws for each field (ClaudeGridView.iconCodeFor,
 weatherGlyph, fillField, batteryGlyph) - update them together.
@@ -35,6 +35,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent / "shared" / "tools"))
 import weather_icons  # noqa: E402  (garmin/shared/tools/weather_icons.py)
+import solid_icons  # noqa: E402  (garmin/shared/tools/solid_icons.py)
 
 HERE = Path(__file__).resolve().parent
 TTF = str(HERE.parent / "tools" / "tabler-icons.ttf")
@@ -92,10 +93,9 @@ def to_uri(alpha: Image.Image) -> str:
 
 
 def tabler(cp: int) -> str:
-    font = ImageFont.truetype(TTF, SIZE)
-    im = Image.new("L", (SIZE * 2, SIZE * 2), 0)
-    ImageDraw.Draw(im).text((SIZE // 2, SIZE // 2), chr(cp), font=font, fill=255)
-    return to_uri(im)
+    """A face icon as the face draws it: the solid version of the Tabler glyph (solid_icons)."""
+    img, _adv = solid_icons.render(cp, TTF, SIZE, solid_icons.mode_for(cp))
+    return to_uri(img)
 
 
 def weather(kind: str) -> str:

@@ -121,8 +121,20 @@ ICON_REMAP = {
 from weather_icons import CODES as WEATHER_CODES, render as render_weather  # noqa: E402
 
 extras = [(WEATHER_CODES[k],) + render_weather(k, ICON_TTF, 24) for k in WEATHER_CODES]
-generate(ICON_TTF, os.path.join(OUT, "cg_icon"), 24, "".join([chr(c) for c in ICONS]),
-         512, "Tabler", emit_ids=[ICON_REMAP.get(c, c) for c in ICONS], extra=extras)
+
+# --- every other icon, solid ---------------------------------------------------------------------
+# Garmin's watch-face icons are solid shapes; ours are drawn solid too, from the outline Tabler
+# glyphs, by garmin/shared/tools/solid_icons.py (fill closed shapes with their inner detail knocked
+# out, heavier strokes for line icons). Each is filed under the SAME code as its outline glyph, so
+# the faces ask for the same codes as before. solid_icons.KEEP (the battery levels) stay outline
+# glyphs, drawn by genfont directly.
+from solid_icons import mode_for as solid_mode, render as render_solid  # noqa: E402
+
+KEPT = [c for c in ICONS if solid_mode(c) == "keep"]
+extras += [(ICON_REMAP.get(c, c),) + render_solid(c, ICON_TTF, 24, solid_mode(c))
+           for c in ICONS if solid_mode(c) != "keep"]
+generate(ICON_TTF, os.path.join(OUT, "cg_icon"), 24, "".join([chr(c) for c in KEPT]),
+         512, "Tabler", emit_ids=[ICON_REMAP.get(c, c) for c in KEPT], extra=extras)
 
 # --- time ink offset -> source/TimeInk.mc ------------------------------------------------------
 # The face positions the time by its DIGITS, not the font's line box: a VCENTER anchor centres the
