@@ -24,6 +24,8 @@ import Toybox.Weather;
 //! picked field. Data 08 likewise shows a second time zone until a complication is picked for it
 //! (or when forced by AltTzAlways); its city is a setting (on-watch menu or Garmin Connect).
 //! Accent and data colours are editable natively; the rest of the palette is baked from the editor.
+//! Any slot can instead show a face-computed field (humidity, wind, chance of rain, battery in days:
+//! the DataNField settings) - data Garmin's editor can't offer because there is no complication.
 //! On the live face, touch-and-hold on a slot launches its complication's app; the battery arc and
 //! the date / weekday strip launch too (launchComplicationAt).
 class ClaudeGridView extends WatchUi.WatchFace {
@@ -66,6 +68,8 @@ class ClaudeGridView extends WatchUi.WatchFace {
     private var _altIndex as Number = 0;         // Data 08 time-zone city (AltTz index)
     private var _altAlways as Boolean = false;   // Data 08 shows the clock even if a comp is picked
     private var _secAlways as Boolean = false;   // Data 07 shows the seconds even if a comp is picked
+    //! Per-slot face-computed field (GridField), index = slot uid; EDITOR = the editor's pick.
+    private var _fields as Array<Number> = [0, 0, 0, 0, 0, 0, 0, 0, 0];
 
     private var _alarmChar as String = "";       // Tabler alarm glyph
 
@@ -252,6 +256,10 @@ class ClaudeGridView extends WatchUi.WatchFace {
     public function updateSlotText(uid as Number) as Void {
         var slot = slotFor(uid);
         if (slot == null) { return; }
+        if (_fields[uid] != GridField.EDITOR) {
+            fillField(slot, _fields[uid]);
+            return;
+        }
         var id = _slotIds[uid];
         if (id == null) { return; }
         var cid = id as Complications.Id;
@@ -301,6 +309,8 @@ class ClaudeGridView extends WatchUi.WatchFace {
                 vs = withDegree(vs);
             } else if (t == Complications.COMPLICATION_TYPE_TRAINING_STATUS) {
                 vs = trainingCode(vs);
+            } else if (t == Complications.COMPLICATION_TYPE_BATTERY) {
+                slot.iconChar = batteryGlyph(c.value).toChar().toString();
             }
 
             if (t == Complications.COMPLICATION_TYPE_HIGH_LOW_TEMPERATURE) {
@@ -416,7 +426,7 @@ class ClaudeGridView extends WatchUi.WatchFace {
         var uid = getTappedComplication(x, y);
         if (uid != null) {
             if ((uid == 8 && altTzActive()) || (uid == 7 && dialSecondsActive())) { return false; }
-            id = _slotIds[uid];
+            id = (_fields[uid] != GridField.EDITOR) ? fieldLaunchId(_fields[uid]) : _slotIds[uid];
         } else if (inBatteryArc(x, y)) {
             id = arcComplicationId();
         } else if (inDateArea(x, y)) {
@@ -452,6 +462,7 @@ class ClaudeGridView extends WatchUi.WatchFace {
     //! The complication the battery arc is showing: Data 01's when the arc gauges it (battArcFrac),
     //! otherwise the system battery.
     private function arcComplicationId() as Complications.Id {
+        if (_fields[1] != GridField.EDITOR) { return fieldLaunchId(_fields[1]); }
         var id = _slotIds[1];
         if (id != null) {
             var cid = id as Complications.Id;
@@ -477,18 +488,127 @@ class ClaudeGridView extends WatchUi.WatchFace {
         return dateRow || weekStrip;
     }
 
-    //! Re-read the slots showing current weather. The weather complication's VALUE is the
-    //! condition code, so its change callback need not fire when only the temperatures move;
-    //! refreshing on wake keeps the actual and feels-like readings current whenever the watch is
-    //! looked at, at the cost of one Weather.getCurrentConditions() call per weather slot.
-    private function refreshWeatherSlots() as Void {
+    //! Re-read the slots whose drawing depends on more than their complication's value: current
+    //! weather (its VALUE is the condition code, so the callback need not fire when only the
+    //! temperatures move), battery (the icon also shows the charger, which has no callback) and
+    //! the face-computed fields (no callback at all). Refreshing on wake keeps them current
+    //! whenever the watch is looked at, for one system read per such slot.
+    private function refreshLiveSlots() as Void {
         for (var i = 0; i < _slots.size(); i++) {
-            var id = _slotIds[_slots[i].uid];
-            if (id != null && (id as Complications.Id).getType()
-                    == Complications.COMPLICATION_TYPE_CURRENT_WEATHER) {
-                updateSlotText(_slots[i].uid);
+            var uid = _slots[i].uid;
+            var id = _slotIds[uid];
+            var t = (id != null) ? (id as Complications.Id).getType() : null;
+            if (_fields[uid] != GridField.EDITOR
+                    || t == Complications.COMPLICATION_TYPE_CURRENT_WEATHER
+                    || t == Complications.COMPLICATION_TYPE_BATTERY) {
+                updateSlotText(uid);
             }
         }
+    }
+
+    // ---- face-computed fields (GridField) ----
+
+    //! Fill a slot with a face-computed field. Each gets an icon (the chips draw it; the text label
+    //! is the no-icon fallback) and a 0..1 fill for the rings, the dial and the battery arc.
+    //! Missing data (no weather synced yet) shows "--" with an empty gauge.
+    private function fillField(slot as ClaudeGridSlot, field as Number) as Void {
+        slot.valueTop = "";
+        slot.valueBot = "";
+        slot.forceFont = null;
+        var icon = 0;
+        var label = "";
+        var value = "--";
+        var frac = 0.0;
+        if (field == GridField.BATT_DAYS) {
+            label = "BAT";
+            var st = System.getSystemStats();
+            icon = batteryGlyph(st.battery);
+            frac = st.battery / 100.0;
+            if ((st has :batteryInDays) && st.batteryInDays != null) {
+                value = Math.round(st.batteryInDays).toNumber().format("%d") + "D";
+            }
+        } else {
+            var cc = null;
+            try { cc = Weather.getCurrentConditions(); } catch (e) {}
+            if (field == GridField.HUMIDITY) {
+                icon = 0xee82;   // droplet-half (the whole droplet is Pulse Ox)
+                label = "HUM";
+                if (cc != null && cc.relativeHumidity != null) {
+                    var hum = cc.relativeHumidity as Number;
+                    value = hum.format("%d") + "%";
+                    frac = hum / 100.0;
+                }
+            } else if (field == GridField.PRECIP) {
+                icon = 0xebf1;   // umbrella
+                label = "RAIN";
+                if (cc != null && cc.precipitationChance != null) {
+                    var pc = cc.precipitationChance as Number;
+                    value = pc.format("%d") + "%";
+                    frac = pc / 100.0;
+                }
+            } else if (field == GridField.WIND) {
+                icon = 0xec34;   // wind, until a bearing is known
+                label = "WIND";
+                if (cc != null && cc.windSpeed != null) {
+                    var sp = windSpeed(cc.windSpeed as Float);
+                    // The unit is its own trailing token, so a narrow slot's auto-fit drops it
+                    // first and keeps the speed (ClaudeGridSlot.fitText).
+                    var statute = System.getDeviceSettings().distanceUnits == System.UNIT_STATUTE;
+                    value = sp.format("%d") + (statute ? " MPH" : " KM/H");
+                    frac = sp / 60.0;   // a 60 km/h (or mph) gale fills the gauge
+                    if (cc.windBearing != null) {
+                        icon = windArrow(cc.windBearing as Number);
+                    }
+                }
+            }
+        }
+        slot.iconChar = (icon != 0) ? icon.toChar().toString() : "";
+        slot.label = label;
+        slot.value = value;
+        slot.frac = (frac < 0.0) ? 0.0 : ((frac > 1.0) ? 1.0 : frac);
+    }
+
+    //! The battery icon at its charge level, as Garmin draws its own: empty, 1-4 bars, or the
+    //! charging glyph while on the charger. Quarter steps, rounded (12% empty, 13% one bar).
+    //! A non-numeric value falls back to the system battery.
+    private function batteryGlyph(pct as Complications.Value or Null) as Number {
+        var st = System.getSystemStats();
+        if ((st has :charging) && st.charging) { return 0xea33; }
+        var p = st.battery.toFloat();
+        if (pct instanceof Lang.Number || pct instanceof Lang.Float
+                || pct instanceof Lang.Double || pct instanceof Lang.Long) {
+            p = pct.toFloat();
+        }
+        if (p >= 87.5) { return 0xea32; }
+        if (p >= 62.5) { return 0xea31; }
+        if (p >= 37.5) { return 0xea30; }
+        if (p >= 12.5) { return 0xea2f; }
+        return 0xea34;
+    }
+
+    //! m/s from the Weather API -> whole km/h, or mph on a watch set to statute distances.
+    private function windSpeed(ms as Float) as Number {
+        var f = (System.getDeviceSettings().distanceUnits == System.UNIT_STATUTE) ? 2.23694 : 3.6;
+        return Math.round(ms * f).toNumber();
+    }
+
+    //! The arrow glyph for the way the air is moving: windBearing is where the wind comes FROM, so
+    //! the arrow points the opposite way (a south-west wind -> up-right), as Garmin's weather glance
+    //! draws it. Eight directions, N first, clockwise.
+    private function windArrow(bearing as Number) as Number {
+        var arrows = [0xea25, 0xea24, 0xea1f, 0xea15, 0xea16, 0xea13, 0xea19, 0xea22];
+        var toward = (bearing + 180) % 360;
+        var idx = ((toward + 22) / 45) % 8;
+        return arrows[idx] as Number;
+    }
+
+    //! What a hold on a face-computed field opens: the weather screen for the weather fields, the
+    //! battery screen for battery days.
+    private function fieldLaunchId(field as Number) as Complications.Id {
+        if (field == GridField.BATT_DAYS) {
+            return new Complications.Id(Complications.COMPLICATION_TYPE_BATTERY);
+        }
+        return new Complications.Id(Complications.COMPLICATION_TYPE_CURRENT_WEATHER);
     }
 
     // ---- drawing ----
@@ -666,9 +786,17 @@ class ClaudeGridView extends WatchUi.WatchFace {
         _altIndex = GridSettings.cityIndex();
         _altAlways = GridSettings.readAlways();
         _secAlways = GridSettings.readSecondsAlways();
+        for (var uid = 1; uid <= 8; uid++) {
+            _fields[uid] = GridSettings.fieldFor(uid);
+        }
         // Same for Data 07 leaving seconds mode.
         if (!dialSecondsActive() && _slotIds[7] != null) {
             updateSlotText(7);
+        }
+        // A field setting may have changed: repopulate every slot (a field slot, or one handed
+        // back to the editor's pick).
+        for (var i = 0; i < _slots.size(); i++) {
+            updateSlotText(_slots[i].uid);
         }
         // Leaving clock mode with a complication already picked: repopulate its icon/value now,
         // rather than waiting for its next change callback.
@@ -679,13 +807,13 @@ class ClaudeGridView extends WatchUi.WatchFace {
 
     //! The clock shows when forced by the setting, or while no complication is picked for Data 08.
     private function altTzActive() as Boolean {
-        return _altAlways || (_slotIds[8] == null);
+        return _altAlways || (_slotIds[8] == null && _fields[8] == GridField.EDITOR);
     }
 
     //! Data 07 is the live seconds dial when forced by the setting, or while no complication is
     //! picked for it.
     private function dialSecondsActive() as Boolean {
-        return _secAlways || (_slotIds[7] == null);
+        return _secAlways || (_slotIds[7] == null && _fields[7] == GridField.EDITOR);
     }
 
     //! Put the time-zone clock into the Data 08 slot (the city code, e.g. "LDN", over HH:MM in the
@@ -813,13 +941,13 @@ class ClaudeGridView extends WatchUi.WatchFace {
 
     public function onShow() as Void {
         readSettings();   // an on-watch settings edit lands here when the face comes back
-        refreshWeatherSlots();
+        refreshLiveSlots();
         _lowPower = false;
         startSweep();
     }
 
     public function onExitSleep() as Void {
-        refreshWeatherSlots();
+        refreshLiveSlots();
         _lowPower = false;
         startSweep();
     }
@@ -837,6 +965,10 @@ class ClaudeGridView extends WatchUi.WatchFace {
     //! Claude usage meters, body battery, etc.), otherwise the system battery. Read fresh so the
     //! arc tracks the live value and matches the numeric readout below it.
     private function battArcFrac() as Float {
+        if (_fields[1] != GridField.EDITOR) {
+            var s1 = slotFor(1);
+            if (s1 != null) { return s1.frac; }
+        }
         var id = _slotIds[1];
         if (id != null) {
             var cid = id as Complications.Id;
