@@ -275,7 +275,8 @@ def build_rows(g: Garmin):
     add("fields", "Humidity", "A droplet that fills with the humidity: a flat water line in 20% steps "
         "(shown at 60%) · no Garmin icon in the article",
         [("ours", "Ours", "", uri_img(to_uri(hum)))], "ours")
-    add("fields", "Wind speed", "Tabler arrows, one of eight: the way the air moves · shown here for a SW wind",
+    add("fields", "Wind speed", "Arrow for the way the air moves (one of eight), then direction and speed: "
+        "SW 19 KM/H · shown here for a SW wind",
         [("ours", "Ours", "", uri_img(tabler(0xea24)))], "ours")
     add("fields", "Chance of rain", "Tabler umbrella · no Garmin icon in the article",
         [("ours", "Ours", "", uri_img(tabler(0xebf1)))], "ours")

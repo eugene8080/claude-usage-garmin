@@ -183,6 +183,11 @@ class ClaudeGridSlot extends WatchUi.Drawable {
     private function fitText(dc as Dc, s as String, font as Graphics.FontType, maxW as Number,
                              chopNumbers as Boolean) as String {
         var out = s;
+        // Values: first drop whole words that carry no digit - a unit, a compass direction -
+        // rightmost first, so the number itself survives: "SW 19 KM/H" -> "SW 19" -> "19".
+        if (!chopNumbers) {
+            out = dropWordsWithoutDigits(dc, out, font, maxW);
+        }
         while (out.length() > 0 && dc.getTextWidthInPixels(out, font) > maxW) {
             var chars = out.toCharArray();
             var cut = null;
@@ -197,6 +202,52 @@ class ClaudeGridSlot extends WatchUi.Drawable {
             if (cut == null && !chopNumbers && hasDigit(out)) { break; }
             var shorter = (cut != null) ? out.substring(0, cut) : out.substring(0, out.length() - 1);
             out = (shorter != null) ? noTrailingSpace(shorter) : "";
+        }
+        return out;
+    }
+
+    //! Remove digit-free words (space-separated), rightmost first, until `s` fits `maxW` or only
+    //! words with digits are left. The caller's token trimming then handles the rest.
+    private function dropWordsWithoutDigits(dc as Dc, s as String, font as Graphics.FontType,
+                                            maxW as Number) as String {
+        var words = splitSpaces(s);
+        var text = joinSpaces(words);
+        while (words.size() > 1 && dc.getTextWidthInPixels(text, font) > maxW) {
+            var drop = -1;
+            for (var i = words.size() - 1; i >= 0; i--) {
+                if (!hasDigit(words[i] as String)) { drop = i; break; }
+            }
+            if (drop < 0) { break; }
+            var kept = [] as Array<String>;
+            for (var j = 0; j < words.size(); j++) {
+                if (j != drop) { kept.add(words[j] as String); }
+            }
+            words = kept;
+            text = joinSpaces(words);
+        }
+        return text;
+    }
+
+    private function splitSpaces(s as String) as Array<String> {
+        var words = [] as Array<String>;
+        var cur = "";
+        var chars = s.toCharArray();
+        for (var i = 0; i < chars.size(); i++) {
+            if (chars[i] == ' ') {
+                if (cur.length() > 0) { words.add(cur); }
+                cur = "";
+            } else {
+                cur += chars[i].toString();
+            }
+        }
+        if (cur.length() > 0) { words.add(cur); }
+        return words;
+    }
+
+    private function joinSpaces(words as Array<String>) as String {
+        var out = "";
+        for (var i = 0; i < words.size(); i++) {
+            out += (i > 0 ? " " : "") + words[i];
         }
         return out;
     }

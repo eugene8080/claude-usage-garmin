@@ -129,7 +129,8 @@ is why the watch app must be installed (and opened once) for the faces to show C
 - **Humidity, wind and chance of rain** — plus **battery in days** — for any slot (the humidity droplet fills with the reading): Garmin's
   editor lists only complications and has none for these, so they're a face setting instead
   (*Data fields* in the face settings on the watch, or in Garmin Connect), which overrides the
-  editor's pick for that slot. Wind shows an arrow for the way it's blowing.
+  editor's pick for that slot. Wind shows an arrow for the way it's blowing, then direction and
+  speed (`SW 19 KM/H`; a narrow slot keeps the speed and drops the unit, then the letters).
 - **Solid weather icons** in Garmin's style (sun, moon, partly cloudy, cloud, rain, snow, storm,
   fog, wind), shared with Claude Terminal.
 - The **battery icon fills with the charge** (empty to four bars, or a plug while charging), like
