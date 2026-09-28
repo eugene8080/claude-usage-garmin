@@ -89,7 +89,6 @@ ICONS = [
     0xea36,   # bike                -> VO2MAX_BIKE
     0xeb43,   # trending-up         -> TRAINING_STATUS
     # Face-computed fields (the per-slot "field" setting; Garmin has no complication for them):
-    0xee82,   # droplet-half        -> HUMIDITY (droplet itself is Pulse Ox)
     0xebf1,   # umbrella            -> chance of rain
     0xea25,   # arrow-up            -> wind: the way the air moves, N (a wind FROM the south)
     0xea24,   # arrow-up-right      -> ... NE
@@ -129,10 +128,13 @@ extras = [(WEATHER_CODES[k],) + render_weather(k, ICON_TTF, 24) for k in WEATHER
 # the faces ask for the same codes as before. solid_icons.KEEP (the battery levels) stay outline
 # glyphs, drawn by genfont directly.
 from solid_icons import mode_for as solid_mode, render as render_solid  # noqa: E402
+from solid_icons import HUMIDITY_BASE, HUMIDITY_STEPS, humidity as render_humidity  # noqa: E402
 
 KEPT = [c for c in ICONS if solid_mode(c) == "keep"]
 extras += [(ICON_REMAP.get(c, c),) + render_solid(c, ICON_TTF, 24, solid_mode(c))
            for c in ICONS if solid_mode(c) != "keep"]
+# The humidity droplet at each 20 % fill step (0xE010 empty ... 0xE015 full; solid_icons.humidity).
+extras += [(HUMIDITY_BASE + i,) + render_humidity(i, ICON_TTF, 24) for i in range(HUMIDITY_STEPS + 1)]
 generate(ICON_TTF, os.path.join(OUT, "cg_icon"), 24, "".join([chr(c) for c in KEPT]),
          512, "Tabler", emit_ids=[ICON_REMAP.get(c, c) for c in KEPT], extra=extras)
 

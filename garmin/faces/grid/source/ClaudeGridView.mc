@@ -531,12 +531,13 @@ class ClaudeGridView extends WatchUi.WatchFace {
             var cc = null;
             try { cc = Weather.getCurrentConditions(); } catch (e) {}
             if (field == GridField.HUMIDITY) {
-                icon = 0xee82;   // droplet-half (the whole droplet is Pulse Ox)
+                icon = humidityGlyph(null);   // an empty droplet until there is a reading
                 label = "HUM";
                 if (cc != null && cc.relativeHumidity != null) {
                     var hum = cc.relativeHumidity as Number;
                     value = hum.format("%d") + "%";
                     frac = hum / 100.0;
+                    icon = humidityGlyph(hum);
                 }
             } else if (field == GridField.PRECIP) {
                 icon = 0xebf1;   // umbrella
@@ -566,6 +567,17 @@ class ClaudeGridView extends WatchUi.WatchFace {
         slot.label = label;
         slot.value = value;
         slot.frac = (frac < 0.0) ? 0.0 : ((frac > 1.0) ? 1.0 : frac);
+    }
+
+    //! The humidity droplet filled to the reading: a flat water line in 20 % steps, rounded to the
+    //! nearest (50% -> 60%, 49% -> 40%). 0xE010 is the empty droplet, 0xE015 the full one
+    //! (garmin/shared/tools/solid_icons.py humidity). No reading -> empty.
+    private function humidityGlyph(pct as Number or Null) as Number {
+        if (pct == null) { return 0xE010; }
+        var step = ((pct as Number) + 10) / 20;
+        if (step < 0) { step = 0; }
+        if (step > 5) { step = 5; }
+        return 0xE010 + step;
     }
 
     //! The battery icon at its charge level, as Garmin draws its own: empty, 1-4 bars, or the

@@ -7,8 +7,6 @@ icons. This Tabler build ships no *-filled glyphs, so they are derived from the 
           detail.
   stroke  An open, line-only icon (arrows, the stress line, the training trend, the bike, whose
           wheels must not fill) is drawn with a heavier stroke, to sit at the same visual weight.
-  half    The left half filled, the right half left as outline: the humidity droplet, which a full
-          fill would make identical to Pulse Ox's droplet.
   keep    Left as the outline glyph (the battery levels: Garmin's own battery icon is an outline
           with a fill level, which the Tabler bars already are).
 
@@ -32,7 +30,6 @@ from scipy.ndimage import binary_dilation, binary_fill_holes, distance_transform
 KEEP = {0xea34, 0xea2f, 0xea30, 0xea31, 0xea32, 0xea33}      # battery, battery-1..4, charging
 STROKE = {0xea36}                                           # bike: the wheels would fill solid
 FILL = {0xea38}                                             # bolt: thin enough to miss FILL_GAIN
-HALF = {0xee82}                                             # droplet-half (humidity)
 # Drawn from a different Tabler glyph than the code it is filed under. Heartbeat's pulse line
 # breaks the heart's outline, so it never fills; heart rate becomes Tabler's closed "heart",
 # filled - the solid heart Garmin uses.
@@ -48,8 +45,6 @@ def mode_for(cp: int) -> str:
         return "stroke"
     if cp in FILL:
         return "fill"
-    if cp in HALF:
-        return "half"
     return "auto"
 
 
@@ -90,16 +85,45 @@ def render(cp: int, ttf: str, size: int, mode: str = "auto", ss: int = 4):
             detail_zone = binary_dilation(detail, iterations=max(1, ss // 2))
             body = np.where(filled, 1.0, cov)              # solid inside, anti-aliased edge outside
             out = body * (1.0 - np.where(detail_zone, cov, 0.0))
-        elif mode == "half":
-            cols = np.nonzero(filled.any(axis=0))[0]
-            mid = (cols.min() + cols.max()) / 2.0
-            left = np.zeros_like(filled)
-            left[:, : int(round(mid))] = True
-            out = np.maximum(cov, (filled & left).astype(np.float64))
         elif mode == "stroke":
             grow = max(1, int(round(0.30 * ss)))           # ~0.3 px heavier on each side at `size`
             out = np.maximum(cov, binary_dilation(mask, iterations=grow).astype(np.float64))
         else:
             raise ValueError("unknown mode %r" % mode)
+    img = Image.fromarray(np.round(np.clip(out, 0, 1) * 255).astype(np.uint8), "L")
+    return img.resize((w // ss, h // ss), Image.BOX), adv
+
+
+# ---- humidity: a droplet that fills with the reading ------------------------------------------
+# Tabler's droplet outline with water inside it up to the humidity level - a flat (horizontal)
+# water line, higher for more humid air. A 1 px gap separates the water from the outline, so even
+# the full droplet stays distinct from Pulse Ox's solid droplet. One glyph per 20 % step, filed at
+# HUMIDITY_BASE + step (step 0 = empty ... HUMIDITY_STEPS = full); ClaudeGridView.humidityGlyph
+# rounds the reading to the nearest step.
+DROPLET = 0xea97
+HUMIDITY_BASE = 0xE010
+HUMIDITY_STEPS = 5
+
+
+def humidity(step: int, ttf: str, size: int, ss: int = 4):
+    """The droplet at fill step `step` (0..HUMIDITY_STEPS): (coverage image "L", xadvance)."""
+    if not 0 <= step <= HUMIDITY_STEPS:
+        raise ValueError("humidity step %d outside 0..%d" % (step, HUMIDITY_STEPS))
+    base = ImageFont.truetype(ttf, size)
+    asc, desc = base.getmetrics()
+    adv = int(round(base.getlength(chr(DROPLET))))
+    margin = 4
+    w, h = (adv + margin) * ss, (asc + desc + margin) * ss
+    im = Image.new("L", (w, h), 0)
+    ImageDraw.Draw(im).text((0, 0), chr(DROPLET), font=ImageFont.truetype(ttf, size * ss), fill=255)
+    cov = np.asarray(im).astype(np.float64) / 255.0
+    mask = cov > 0.4
+    # The droplet's inside, less a 1 px gap along the outline.
+    interior = binary_fill_holes(mask) & ~binary_dilation(mask, iterations=ss)
+    rows = np.nonzero(interior.any(axis=1))[0]
+    top, bottom = rows.min(), rows.max() + 1
+    level = bottom - (step / HUMIDITY_STEPS) * (bottom - top)      # the water line, as a row index
+    water = interior & (np.arange(h)[:, None] >= level)
+    out = np.maximum(cov, water.astype(np.float64))
     img = Image.fromarray(np.round(np.clip(out, 0, 1) * 255).astype(np.uint8), "L")
     return img.resize((w // ss, h // ss), Image.BOX), adv

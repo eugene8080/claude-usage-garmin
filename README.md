@@ -126,7 +126,7 @@ is why the watch app must be installed (and opened once) for the faces to show C
   Usage; a built-in field (weather, heart rate, stress, Body Battery…) opens the watch's own screen
   for it, where the watch offers one. The battery arc opens whatever it gauges, and the date or
   the weekday strip opens the calendar. Holding the time still does what it always did.
-- **Humidity, wind and chance of rain** — plus **battery in days** — for any slot: Garmin's
+- **Humidity, wind and chance of rain** — plus **battery in days** — for any slot (the humidity droplet fills with the reading): Garmin's
   editor lists only complications and has none for these, so they're a face setting instead
   (*Data fields* in the face settings on the watch, or in Garmin Connect), which overrides the
   editor's pick for that slot. Wind shows an arrow for the way it's blowing.
