@@ -552,13 +552,15 @@ class ClaudeGridView extends WatchUi.WatchFace {
                 label = "WIND";
                 if (cc != null && cc.windSpeed != null) {
                     var sp = windSpeed(cc.windSpeed as Float);
-                    // The unit is its own trailing token, so a narrow slot's auto-fit drops it
-                    // first and keeps the speed (ClaudeGridSlot.fitText).
+                    // "SW 19 KM/H", as Garmin's weather glance writes it (plus the unit). A narrow
+                    // slot's auto-fit drops the words without digits first - the unit, then the
+                    // direction - so the speed always survives (ClaudeGridSlot.fitText).
                     var statute = System.getDeviceSettings().distanceUnits == System.UNIT_STATUTE;
                     value = sp.format("%d") + (statute ? " MPH" : " KM/H");
                     frac = sp / 60.0;   // a 60 km/h (or mph) gale fills the gauge
                     if (cc.windBearing != null) {
                         icon = windArrow(cc.windBearing as Number);
+                        value = windCompass(cc.windBearing as Number) + " " + value;
                     }
                 }
             }
@@ -612,6 +614,14 @@ class ClaudeGridView extends WatchUi.WatchFace {
         var toward = (bearing + 180) % 360;
         var idx = ((toward + 22) / 45) % 8;
         return arrows[idx] as Number;
+    }
+
+    //! The compass point the wind blows FROM, as weather reports name it (a "south-west wind" comes
+    //! from the SW; its arrow points NE). Eight points, matching the eight arrows.
+    private function windCompass(bearing as Number) as String {
+        var names = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+        var idx = (((bearing % 360) + 360 + 22) % 360) / 45;
+        return names[idx] as String;
     }
 
     //! What a hold on a face-computed field opens: the weather screen for the weather fields, the
