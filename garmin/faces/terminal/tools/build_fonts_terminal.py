@@ -185,7 +185,7 @@ def glow_from_bmfont(src_base: str, out_base: str) -> None:
 
 def copy_icon_font() -> None:
     """The weather icons, as stm_icon: Claude Grid's generated cg_icon atlas (Tabler icons at
-    24 px, incl. the composited cloud+sun / cloud+moon at 0xE001 / 0xE002), copied rather than
+    24 px, incl. the solid weather set at 0xE001-0xE00A), copied rather than
     regenerated so both faces show identical icons from one source. Run Claude Grid's
     tools/build_fonts_grid.py (garmin/faces/grid/) first if the icon set changes."""
     src = GRID_FONTS

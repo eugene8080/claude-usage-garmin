@@ -16,27 +16,19 @@ def icon_datauri(cp):
     buf = BytesIO(); img.save(buf, "PNG")
     return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
 
-def composite_datauri(back_cp):
-    """Cloud with a small sun/moon behind it - the face's partly-cloudy icon (cg_icon 0xE001/2,
-    built the same way in ../tools/build_fonts_grid.py): the cloud silhouette plus a moat is
-    cut out of the back glyph so the two outlines never touch."""
-    import numpy as np
-    from scipy.ndimage import binary_dilation, binary_fill_holes
-    S = 104
-    def layer(size, cp, dx, dy):
-        f = ImageFont.truetype(TTF, size)
-        im = Image.new("L", (S, S), 0)
-        ImageDraw.Draw(im).text((dx, dy), chr(cp), font=f, fill=255)
-        return np.asarray(im).astype(np.float64) / 255.0
-    cloud = layer(int(88 * 0.86), 0xea76, 4, 24)
-    back = layer(int(88 * 0.62), back_cp, 46, 4)
-    body = binary_fill_holes(cloud > 0.35)
-    cut = binary_dilation(body, iterations=4)
-    a = np.maximum(cloud, np.where(cut, 0.0, back))
-    rgba = np.zeros((S, S, 4), dtype=np.uint8)
-    rgba[..., 0], rgba[..., 1], rgba[..., 2] = GRAY[0], GRAY[1], GRAY[2]
-    rgba[..., 3] = np.round(a * 255).astype(np.uint8)
-    buf = BytesIO(); Image.fromarray(rgba, "RGBA").save(buf, "PNG")
+def weather_datauri(kind):
+    """One of the face's solid weather icons (cg_icon 0xE001-0xE00A), from the same generator
+    that builds them into the font: ../../../shared/tools/weather_icons.py."""
+    import sys
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "shared", "tools"))
+    import weather_icons
+    cov, _adv = weather_icons.render(kind, TTF, 88)
+    img = Image.new("RGBA", (104, 104), (0, 0, 0, 0))
+    glyph = Image.new("RGBA", cov.size, GRAY[:3] + (0,))
+    glyph.putalpha(cov)
+    bb = cov.getbbox()
+    img.alpha_composite(glyph, ((104 - (bb[0] + bb[2])) // 2, (104 - (bb[1] + bb[3])) // 2))
+    buf = BytesIO(); img.save(buf, "PNG")
     return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
 
 # Every icon the face can draw (ClaudeGridView.iconCodeFor / weatherGlyph), incl. the ones added
@@ -47,7 +39,7 @@ CPS = [0xea34,0xec87,0xef92,0xea38,0xef62,0xeab1,0xeb38,0xec2c,0xeca5,0xef97,
        0xea72,0xea73,0xea74,0xecd9,0xec34,0xec0b,0x10265,0xea04,0xeb54,
        0xec82,0xea36,0xeb43]
 ICONS = {("0x%x" % cp): icon_datauri(cp) for cp in CPS}
-ICONS["cloudsun"] = composite_datauri(0xeb30)
+ICONS["cloudsun"] = weather_datauri("partly_day")   # the Current Weather preview
 icons_js = "{" + ",".join('"%s":"%s"' % (k, v) for k, v in ICONS.items()) + "}"
 
 # Font menu, grouped by style so it's navigable. Every face has FIXED-WIDTH DIGITS (so the time never

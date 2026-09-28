@@ -113,41 +113,14 @@ ICON_REMAP = {
     0x10265: 0xE000,  # footprints (steps) - drew as a tofu box when filed under U+10265
 }
 
-# --- composite weather icons ------------------------------------------------------------------
-# This Tabler build has no "cloud-sun" / "cloud-moon", which "partly cloudy" needs. They are
-# composed here: a small sun (or moon) in the upper right, sitting BEHIND the cloud - the cloud's
-# filled silhouette plus a 1 px moat is cut out of the sun so the two outlines never touch.
-# Drawn at 4x and box-filtered to 24 px, in the same frame draw.text uses, so they align with the
-# real Tabler glyphs. The face asks for them by these codes (ClaudeGridView.weatherGlyph).
-CLOUD_SUN = 0xE001
-CLOUD_MOON = 0xE002
+# --- solid weather icons ------------------------------------------------------------------------
+# Garmin-style filled weather icons (clear / partly cloudy, day and night; cloudy; rain; snow;
+# storm; fog; wind), built from the outline Tabler glyphs by garmin/shared/tools/weather_icons.py
+# (this Tabler build has no *-filled glyphs) and filed at 0xE001-0xE00A (weather_icons.CODES).
+# The faces ask for them by those codes (ClaudeGridView / ClaudeFaceView.weatherGlyph).
+from weather_icons import CODES as WEATHER_CODES, render as render_weather  # noqa: E402
 
-
-def composite_icon(back_cp, size=24, ss=4):
-    import numpy as np
-    from scipy.ndimage import binary_dilation, binary_fill_holes
-    big = ImageFont.truetype(ICON_TTF, int(size * ss * 0.86))      # cloud, slightly reduced
-    small = ImageFont.truetype(ICON_TTF, int(size * ss * 0.62))    # sun / moon
-    asc, desc = ImageFont.truetype(ICON_TTF, size).getmetrics()
-    adv = int(round(ImageFont.truetype(ICON_TTF, size).getlength(chr(0xea76))))
-    W, H = adv * ss, (asc + desc) * ss
-
-    def layer(font, cp, dx, dy):
-        im = Image.new("L", (W, H), 0)
-        ImageDraw.Draw(im).text((dx, dy), chr(cp), font=font, fill=255)
-        return np.asarray(im).astype(np.float64) / 255.0
-
-    cloud = layer(big, 0xea76, 0, int(4.5 * ss))                 # lower left
-    back = layer(small, back_cp, int(W * 0.40), int(-0.5 * ss))  # upper right, mostly clear of it
-    body = binary_fill_holes(cloud > 0.35)                        # cloud silhouette (outline + inside)
-    cut = binary_dilation(body, iterations=ss)                    # + 1 px moat at 24 px
-    out = np.maximum(cloud, np.where(cut, 0.0, back))
-    img = Image.fromarray(np.round(out * 255).astype(np.uint8), "L")
-    return img.resize((W // ss, H // ss), Image.BOX), adv
-
-
-extras = [(CLOUD_SUN,) + composite_icon(0xeb30),   # sun  behind cloud -> partly cloudy (day)
-          (CLOUD_MOON,) + composite_icon(0xeaf8)]  # moon behind cloud -> partly cloudy (night)
+extras = [(WEATHER_CODES[k],) + render_weather(k, ICON_TTF, 24) for k in WEATHER_CODES]
 generate(ICON_TTF, os.path.join(OUT, "cg_icon"), 24, "".join([chr(c) for c in ICONS]),
          512, "Tabler", emit_ids=[ICON_REMAP.get(c, c) for c in ICONS], extra=extras)
 
