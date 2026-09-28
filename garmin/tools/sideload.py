@@ -21,7 +21,13 @@ RUN IT INTERACTIVELY - from a terminal, or from the Claude Code chat input as
 with the watch connected by USB and its screen AWAKE and UNLOCKED. Windows MTP writes silently do
 nothing when the watch is asleep or when run from a background (non-interactive) session: the
 copy "succeeds" and no file arrives. That is why every copy is confirmed by looking the file up on
-the watch afterwards (installed .prg files don't show in a folder listing, so it's a name lookup).
+the watch afterwards (installed .prg files don't show in a folder listing, so it's a name lookup) and
+checking it is the NEW file: the right size, and not the same entry that was there before the copy.
+
+It is never silent: while Windows copies (in a worker thread, because the copy call blocks until
+Windows is done - including while a "Replace or Skip Files" dialog waits for an answer) it reports
+progress every few seconds, names any dialog Windows has opened for it and tries to bring it to the
+front, and it always ends with a summary line.
 If a face doesn't change after install, remove the old copy on the watch (or restart the watch)
 to clear the cached one, then reselect it. Stored settings survive a sideload (they are kept per
 app id), so new defaults in properties.xml won't show over an existing install.
@@ -29,15 +35,17 @@ app id), so new defaults in properties.xml won't show over an existing install.
 Needs pywin32 (Shell.Application COM) - only for the copy, not for --list.
 
 Exit status: 0 = every file confirmed on the watch (or --list / --dry-run succeeded)
-             1 = a copy was not confirmed within --timeout seconds
+             1 = a copy failed, or was not confirmed within --timeout seconds of Windows finishing
              2 = bad arguments, no matching .prg, pywin32 missing, or the watch not found
 """
 from __future__ import annotations
 
 import argparse
 import logging
+import os
 import re
 import sys
+import threading
 import time
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
@@ -54,6 +62,10 @@ DEFAULT_PRODUCT = "fenix847mm"                 # its Connect IQ device id (fenix
 ALIASES = {"app": "watch-app"}
 IQ_NS = "{http://www.garmin.com/xml/connectiq}"
 SSF_DRIVES = 0x11                              # Shell.Application namespace id of "This PC"
+# CopyHere flag: answer "Yes to All" to any prompt, so an existing copy on the watch is replaced
+# instead of a "Replace or Skip Files" dialog blocking the copy (MTP ignores most other flags).
+FOF_NOCONFIRMATION = 0x10
+HEARTBEAT_S = 5                                # progress line interval while Windows copies
 
 
 class SideloadError(Exception):
@@ -198,21 +210,115 @@ def apps_folder(shell: Any, device: str) -> Any:
     return apps.GetFolder
 
 
-def copy_and_confirm(shell: Any, device: str, prg: Path, timeout: int) -> bool:
-    """Copy one .prg into GARMIN/Apps and wait until the watch reports it by name."""
-    src = shell.Namespace(str(prg.parent)).ParseName(prg.name)
-    if src is None:
-        raise SideloadError("Windows Shell cannot see %s" % prg)
-    # Flags 0: default behaviour. MTP ignores most CopyHere flags, and this is the call that has
-    # been used successfully on this watch; a replace prompt, if any, is left for the user.
-    apps_folder(shell, device).CopyHere(src, 0)
-    for _ in range(timeout):
-        time.sleep(1)
+def watch_entry(shell: Any, device: str, name: str) -> tuple[int, str] | None:
+    """(size in bytes, modified date) of GARMIN/Apps/<name> on the watch, or None if absent."""
+    item = apps_folder(shell, device).ParseName(name)
+    if item is None:
+        return None
+    return int(item.Size), str(item.ModifyDate)
+
+
+def own_dialogs() -> list[tuple[int, str]]:
+    """Visible top-level windows of THIS process: the dialogs Windows' copy engine opens for the
+    CopyHere call (progress, "Replace or Skip Files", errors) belong to the calling process."""
+    try:
+        import win32gui  # noqa: PLC0415
+        import win32process  # noqa: PLC0415
+    except ImportError:
+        return []
+    pid = os.getpid()
+    found: list[tuple[int, str]] = []
+
+    def visit(hwnd: int, _: Any) -> bool:
+        if win32gui.IsWindowVisible(hwnd) and win32process.GetWindowThreadProcessId(hwnd)[1] == pid:
+            title = win32gui.GetWindowText(hwnd)
+            if title:
+                found.append((hwnd, title))
+        return True
+
+    try:
+        win32gui.EnumWindows(visit, None)
+    except Exception:  # noqa: BLE001 - window enumeration is best-effort diagnostics
+        return []
+    return found
+
+
+def surface(hwnd: int) -> None:
+    """Best effort: bring a copy dialog in front of the terminal so it gets answered."""
+    try:
+        import win32gui  # noqa: PLC0415
+        win32gui.SetForegroundWindow(hwnd)
+    except Exception:  # noqa: BLE001 - Windows may refuse; the dialog is still named in the log
+        pass
+
+
+def _copy_worker(device: str, prg: Path, outcome: dict[str, Any]) -> None:
+    """Runs the blocking CopyHere in its own COM apartment (a Shell object can't cross threads)."""
+    try:
+        import pythoncom  # noqa: PLC0415
+        pythoncom.CoInitialize()
         try:
-            if apps_folder(shell, device).ParseName(prg.name) is not None:
-                return True
+            shell = shell_app()
+            src = shell.Namespace(str(prg.parent)).ParseName(prg.name)
+            if src is None:
+                raise SideloadError("Windows Shell cannot see %s" % prg)
+            apps_folder(shell, device).CopyHere(src, FOF_NOCONFIRMATION)
+        finally:
+            pythoncom.CoUninitialize()
+    except BaseException as ex:  # noqa: BLE001 - handed back to the main thread
+        outcome["error"] = ex
+
+
+def copy_and_confirm(shell: Any, device: str, prg: Path, timeout: int) -> bool:
+    """Copy one .prg into GARMIN/Apps, reporting progress, and confirm the new file arrived."""
+    size = prg.stat().st_size
+    before = watch_entry(shell, device, prg.name)
+    if before is not None:
+        log.info("  the watch already has a %s (%d bytes, %s) - replacing it", prg.name, *before)
+
+    outcome: dict[str, Any] = {}
+    worker = threading.Thread(target=_copy_worker, args=(device, prg, outcome), daemon=True)
+    started = time.monotonic()
+    worker.start()
+    surfaced: set[int] = set()
+    while True:
+        worker.join(HEARTBEAT_S)
+        if not worker.is_alive():
+            break
+        dialogs = own_dialogs()
+        titles = ", ".join('"%s"' % t for _, t in dialogs)
+        log.info("  Windows is still copying (%ds)%s", time.monotonic() - started,
+                 (" - open dialog: %s. If it asks a question, answer it." % titles) if dialogs else "")
+        for hwnd, _ in dialogs:
+            if hwnd not in surfaced:
+                surface(hwnd)
+                surfaced.add(hwnd)
+    if "error" in outcome:
+        err = outcome["error"]
+        if isinstance(err, SideloadError):
+            raise err
+        log.error("  the copy failed: %s", err)
+        return False
+    log.info("  Windows finished in %ds; checking the watch has the new file ...", time.monotonic() - started)
+
+    deadline = time.monotonic() + timeout
+    last = None
+    while time.monotonic() < deadline:
+        try:
+            now = watch_entry(shell, device, prg.name)
         except SideloadError:
-            pass                    # the device can drop off briefly while it takes the file
+            now = None              # the device can drop off briefly while it takes the file
+        last = now
+        if now is not None and now[0] == size:
+            if before is None or now != before:
+                return True
+            if before[0] == size:
+                # Same size and date as the copy that was already there: Windows kept the date, so
+                # this is the same build (or one byte-for-byte the same size) - nothing to tell apart.
+                log.info("  the watch shows the same size and date as before - this build was already on it")
+                return True
+        time.sleep(1)
+    log.error("  last seen on the watch: %s", "nothing" if last is None else "%d bytes, %s" % last)
     return False
 
 
@@ -251,16 +357,25 @@ def main(argv: list[str] | None = None) -> int:
             log.info("dry run: nothing copied")
             return 0
         failed = []
-        for c in chosen:
-            log.info("copying %s (%d bytes) ...", c.path.name, c.path.stat().st_size)
+        log.info("(Ctrl+C aborts)")
+        for n, c in enumerate(chosen, 1):
+            log.info("[%d/%d] copying %s (%d bytes) ...", n, len(chosen), c.path.name, c.path.stat().st_size)
             if copy_and_confirm(shell, args.device, c.path, args.timeout):
-                log.info("  OK: on the watch (installing). Disconnect once the watch finishes.")
+                log.info("  OK: %s is on the watch.", c.path.name)
             else:
                 failed.append(c.path)
-                log.error("  NOT CONFIRMED after %ds. If a copy dialog appeared, let it finish and re-run; "
-                          "otherwise drag %s onto the watch's GARMIN\\Apps folder in File Explorer.",
-                          args.timeout, c.path)
-        return 1 if failed else 0
+                log.error("  NOT CONFIRMED. Wake and unlock the watch and re-run, or drag %s onto the "
+                          "watch's GARMIN\\Apps folder in File Explorer.", c.path)
+        if failed:
+            log.error("Done: %d of %d copied; NOT confirmed: %s", len(chosen) - len(failed), len(chosen),
+                      ", ".join(f.name for f in failed))
+            return 1
+        log.info("Done: all %d on the watch. It installs them now - disconnect once it has finished.",
+                 len(chosen))
+        return 0
+    except KeyboardInterrupt:
+        log.error("Aborted. A copy Windows had already started may still finish on its own.")
+        return 1
     except SideloadError as ex:
         log.error("ERROR: %s", ex)
         return 2
