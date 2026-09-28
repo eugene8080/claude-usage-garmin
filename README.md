@@ -127,8 +127,9 @@ is why the watch app must be installed (and opened once) for the faces to show C
   watch offers one. Holding the time, the dial or the date still does what it always did.
 - **Current Weather** shows the temperature with the **feels-like** temperature (`FL40°`) under
   it — Garmin has no feels-like complication, so the face reads it from the weather data itself.
-- **Data 08** shows a **second time zone** until you pick a complication for it; its city
-  (15 choices, daylight saving automatic) is a face setting on the watch or in Garmin Connect.
+- **Data 08** shows a **second time zone** until you pick a complication for it, labelled with
+  the city's code (NY, CHI, LA, LDN, PAR, ZUR, DUB, MUM, SG, HK, SHG, TOK, SYD, AUC or UTC); the
+  city (daylight saving automatic) is a face setting on the watch or in Garmin Connect.
 - The default look is a **synthwave VFD**: a glowing IBM Plex Mono time (white hour, pink-to-coral
   minute, pink glow) with cyan data and a yellow accent, over a fine tube-style mesh,
   a pre-rasterised seconds dial and battery arc for crisp edges, and a thin outline time in

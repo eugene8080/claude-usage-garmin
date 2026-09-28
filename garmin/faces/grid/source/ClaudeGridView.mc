@@ -65,7 +65,6 @@ class ClaudeGridView extends WatchUi.WatchFace {
     private var _altAlways as Boolean = false;   // Data 08 shows the clock even if a comp is picked
 
     private var _alarmChar as String = "";       // Tabler alarm glyph
-    private var _worldChar as String = "";       // Tabler globe glyph (alt time zone)
 
     //! 0..1 multiplier that sweeps the ring gauges + seconds in on wake. Public so WatchUi.animate()
     //! can drive it by symbol. Defaults to 1.0 so nothing is stuck empty if animation is unavailable.
@@ -82,7 +81,6 @@ class ClaudeGridView extends WatchUi.WatchFace {
         WatchFace.initialize();
         _editMode = editMode;
         _alarmChar = (0xea04).toChar().toString();
-        _worldChar = (0xeb54).toChar().toString();
     }
 
     public function onLayout(dc as Dc) as Void {
@@ -606,15 +604,17 @@ class ClaudeGridView extends WatchUi.WatchFace {
         return _altAlways || (_slotIds[8] == null);
     }
 
-    //! Put the time-zone clock into the Data 08 slot (globe icon over HH:MM in the 30px font), or
-    //! hand the slot back to auto-fit when a picked complication owns it. Because the clock lives
-    //! IN the slot, the editor can select, pulse and reassign Data 08 like any other field.
+    //! Put the time-zone clock into the Data 08 slot (the city code, e.g. "LDN", over HH:MM in the
+    //! 30px font), or hand the slot back to auto-fit when a picked complication owns it. The code
+    //! is drawn as the slot's text label, in the same place and colour as any other field's label.
+    //! Because the clock lives IN the slot, the editor can select, pulse and reassign Data 08 like
+    //! any other field.
     private function refreshAltTz() as Void {
         var slot = slotFor(8);
         if (slot == null) { return; }
         if (altTzActive()) {
-            slot.iconChar = _worldChar;
-            slot.label = "";
+            slot.iconChar = "";
+            slot.label = AltTz.code(_altIndex);
             slot.valueTop = "";
             slot.valueBot = "";
             slot.value = AltTz.timeStr(_altIndex);
