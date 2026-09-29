@@ -37,3 +37,18 @@ preview matches the simulator (checked: identical x, time identical y, text with
 ```
 python build_terminal_editor.py
 ```
+
+## Scanline lab
+**`scanline-lab.html`** tunes the CRT scanline effect on a real render of the face (Connect IQ
+simulator, fenix847mm, Retro tube, captured 1:1 with glow and overlay off: `lab/base_clean.png`).
+Sliders: line spacing, line thickness, how dark the lines are on the text and on the background
+(separately), background brightness, and bleed (glow) strength and radius. Presets sit side by
+side at true pixel size next to the face as it ships (`lab/base_current.png`), and a 3x view shows
+the time pixel for pixel. **Copy settings** gives a line to paste into the chat.
+
+It draws in the watch's order: background (with its own colour in the line rows), glow, the
+text, then the line overlay, rounded to the watch's 16-bit colours. So any setting it shows can
+be built on the watch: a background stripe tile, the scan tile's alpha, and the halo fonts / time
+glow rebuilt at the chosen radius and strength. Rebuild the page with
+`python build_scanline_lab.py` (or `--artifact <path>` for a claude.ai Artifact), and recapture the
+two base images from the simulator if the face's layout changes.
