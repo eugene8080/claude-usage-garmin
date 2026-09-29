@@ -151,8 +151,10 @@ is why the watch app must be installed (and opened once) for the faces to show C
 ### Claude Terminal
 
 - The three Claude meters as CLI rows (`5H`, `1W`, model) with bars, percentages and absolute
-  reset times, under a `fenix@tactix ~ $` prompt and the time, in IBM Plex Mono — by default on a
-  glowing green **retro tube** screen with scanlines (Night Owl blue is the alternative).
+  reset times, under a `fenix@tactix ~ $` prompt and the time, in the **Doto** dot-matrix font — by
+  default on a glowing green **retro tube** screen with CRT scanlines over a lit green background
+  (Night Owl blue is the alternative). The scanline look is tuned in the layout editor's Scanlines
+  panel ([garmin/faces/terminal/editor](garmin/faces/terminal/editor/README.md)).
 - A segmented **battery bar** under the meters — Claude Grid's top battery arc, straightened (turns
   red at 20%).
 - **Weather** at the top, like Rad Lad: the current condition icon (solid, Garmin-style; sun / moon by time of day),
@@ -167,7 +169,7 @@ is why the watch app must be installed (and opened once) for the faces to show C
   of the VFD mesh; on by default) and **Show seconds**. A sideloaded face can only be set on the watch — Garmin Connect edits settings only
   for faces installed from the Connect IQ Store.
 - VFD style by default (glowing time + full-face mesh).
-- Always-on (low power), like Claude Grid: the time becomes a thin outline that stays exactly
+- Always-on (low power): the time drops its glow (plain Doto dots, few lit pixels) and stays exactly
   where it was, its **seconds frozen** on the second the watch went to sleep, then `:00` from the
   next minute, the three Claude bars become outlines, and the
   grey tracks go, while the VFD mesh or scanlines stay — about 6% of the screen lit.

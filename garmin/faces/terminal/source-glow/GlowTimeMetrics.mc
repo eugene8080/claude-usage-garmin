@@ -2,7 +2,7 @@
 // Offset of every glow-glyph bitmap from (pen x, line top) of stm_time; Y0 includes +1 for
 // CIQ's glyph row offset. H = bitmap height (glyph ink + bloom), for the repaint band.
 module GlowTimeMetrics {
-    const X0 = -18;
-    const Y0 = 5;
-    const H = 87;
+    const X0 = -26;
+    const Y0 = -5;
+    const H = 104;
 }

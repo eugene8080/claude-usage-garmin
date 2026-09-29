@@ -35,6 +35,11 @@ class ClaudeFaceView extends WatchUi.WatchFace {
     private var DIM as Number = 0x7F9C9C;         // date, labels, reset times
     private var NEAR_CAP as Number = 0xEF5350;    // bar fill at 80%+
     private var BG as Number = 0x000000;          // high-power background (always-on is black)
+    // The background in the scanline rows, before the scan tile darkens them by SCAN_DIM: chosen so
+    // the background's lines end up darker than the text's (editor: "on background" 60 % vs "on
+    // text" 38 %): BG_LINE = BG x (1 - 0.60) / (1 - 0.38).
+    private var BG_LINE as Number = 0x000000;
+    private const SCAN_PITCH = 3;                 // = tools/build_glow_time.py SCAN_PITCH
     private const DEFAULT_PROMPT = "fenix@tactix ~ $";
     private const THEME_RETRO = 1;
 
@@ -92,14 +97,18 @@ class ClaudeFaceView extends WatchUi.WatchFace {
     private var _ink as Number = 0xFFFFFF;           // current text colour (see ink())
     // Halo colour = the text colour blended this far from the background: the halo font's full-
     // coverage core then shows at 50 %, its 2/3 and 1/3 steps at ~33 % and ~17 % (CIQ's 4 levels).
-    private const GLOW_MIX = 0.5;
+    private const GLOW_MIX = 0.72;   // bleed 145 % from the editor (was 0.5)
 
     // IBM Plex Mono, loaded from resources - the terminal typeface for every element, at the
     // editor's sizes: prompt 26px, date + rows 25px, time 70px.
     private var _fontText as Graphics.FontType?;
     private var _fontSmall as Graphics.FontType?;
     private var _fontTime as Graphics.FontType?;
-    private var _fontTimeO as Graphics.FontType?;   // 2 px hollow outline time - always-on
+    private var _fontTimeO as Graphics.FontType?;   // 2 px hollow outline time - always-on, if AOD_OUTLINE
+    // Always-on draws the time as a 2 px outline for a stroke typeface (IBM Plex Mono, before
+    // 2026-09-29). Doto is made of dots: its solid glyphs are already sparse, and outlining every
+    // dot lit MORE pixels (it read as chain links) - so always-on draws the solid Doto time.
+    private const AOD_OUTLINE = false;
 
     // Always-on (low power), the same scheme as Claude Grid: onEnterSleep / onExitSleep flip it.
     // The AMOLED burn-in budget wants few, thin lit pixels, so while it is set the face draws
@@ -122,7 +131,9 @@ class ClaudeFaceView extends WatchUi.WatchFace {
         _fontText = WatchUi.loadResource(Rez.Fonts.STMono) as Graphics.FontType;
         _fontSmall = WatchUi.loadResource(Rez.Fonts.STMonoSmall) as Graphics.FontType;
         _fontTime = WatchUi.loadResource(Rez.Fonts.STMonoTime) as Graphics.FontType;
-        _fontTimeO = WatchUi.loadResource(Rez.Fonts.STMonoTimeOutline) as Graphics.FontType;
+        if (AOD_OUTLINE) {
+            _fontTimeO = WatchUi.loadResource(Rez.Fonts.STMonoTimeOutline) as Graphics.FontType;
+        }
         _fontIcon = WatchUi.loadResource(Rez.Fonts.STIcon) as Graphics.FontType;
         _glowText = WatchUi.loadResource(Rez.Fonts.STMonoGlow) as Graphics.FontType;
         _glowSmall = WatchUi.loadResource(Rez.Fonts.STMonoSmallGlow) as Graphics.FontType;
@@ -171,11 +182,14 @@ class ClaudeFaceView extends WatchUi.WatchFace {
     //! a monochrome tube has no red (the editor design, 2026-09-25; was amber).
     private function applyTheme(theme as Number) as Void {
         if (theme == THEME_RETRO) {
+            // 2026-09-29, from the layout editor: the background 1.75x brighter (was 020F06) so its
+            // scanlines show, its line rows darker (BG_LINE, see drawBgLines), 80%+ in a muted red
+            // (was the brightest green, 11FF00).
             ACCENT = 0x2BDC63; VALUE = 0x66FF8F; DIM = 0x1E9A48;
-            TRACK = 0x0C3318; NEAR_CAP = 0x11FF00; BG = 0x020F06;
+            TRACK = 0x0C3318; NEAR_CAP = 0xBF616A; BG = 0x041A0B; BG_LINE = 0x031107;
         } else {
             ACCENT = 0x82AAFF; VALUE = 0xD6DEEB; DIM = 0x7F9C9C;
-            TRACK = 0x333333; NEAR_CAP = 0xEF5350; BG = 0x000000;
+            TRACK = 0x333333; NEAR_CAP = 0xEF5350; BG = 0x000000; BG_LINE = 0x000000;
         }
         setGlowTheme(theme);
     }
@@ -254,16 +268,21 @@ class ClaudeFaceView extends WatchUi.WatchFace {
         dc.setColor(color, Graphics.COLOR_TRANSPARENT);
     }
 
-    //! Soft halo behind a lit rectangle: +4 px at 14 % and +2 px at 30 % of the way from the
-    //! background to `color`. Pre-blended solid colours rather than alpha, so it looks the same on
-    //! every device and costs two fills.
+    //! Soft halo behind a lit rectangle: +8 px at 12 %, +5 px at 22 % and +2 px at 36 % of the way
+    //! from the background to `color`, with rounded corners. Pre-blended solid colours rather than
+    //! alpha, so it looks the same on every device and costs three fills.
     private function haloRect(dc as Dc, x as Number, y as Number, w as Number, h as Number,
                               color as Number) as Void {
         if (!glowOn() || w <= 0 || h <= 0) { return; }
-        dc.setColor(mix(BG, color, 0.14), Graphics.COLOR_TRANSPARENT);
-        dc.fillRectangle(x - 4, y - 4, w + 8, h + 8);
-        dc.setColor(mix(BG, color, 0.30), Graphics.COLOR_TRANSPARENT);
-        dc.fillRectangle(x - 2, y - 2, w + 4, h + 4);
+        // Three steps out to 8 px (was two, to 4 px): the editor's wider bleed (radius 5, 145 %).
+        // Rounded steps, each corner radius its own spread, so the halo reads as a glow and not as a
+        // frame around the bar.
+        dc.setColor(mix(BG, color, 0.12), Graphics.COLOR_TRANSPARENT);
+        dc.fillRoundedRectangle(x - 8, y - 8, w + 16, h + 16, 8);
+        dc.setColor(mix(BG, color, 0.22), Graphics.COLOR_TRANSPARENT);
+        dc.fillRoundedRectangle(x - 5, y - 5, w + 10, h + 10, 5);
+        dc.setColor(mix(BG, color, 0.36), Graphics.COLOR_TRANSPARENT);
+        dc.fillRoundedRectangle(x - 2, y - 2, w + 4, h + 4, 2);
     }
 
     //! Linear blend of two 0xRRGGBB colours, t = 0 -> a, 1 -> b.
@@ -399,6 +418,7 @@ class ClaudeFaceView extends WatchUi.WatchFace {
         if (dc has :setAntiAlias) { dc.setAntiAlias(true); }
         dc.setColor(Graphics.COLOR_WHITE, bg());
         dc.clear();
+        drawBgLines(dc, 0, 0, w, h);   // scanlines: the background's own line rows, under everything
 
         drawWeather(dc, w, h);
         drawHeader(dc, w, h);
@@ -468,6 +488,7 @@ class ClaudeFaceView extends WatchUi.WatchFace {
         dc.setClip(0, band[0], w, band[1]);
         dc.setColor(bg(), bg());          // the theme background (Retro tube is not black)
         dc.fillRectangle(0, band[0], w, band[1]);
+        drawBgLines(dc, 0, band[0], w, band[1]);
         drawHeader(dc, w, h);
         dc.clearClip();
         // re-mesh just the repainted band (same lattice, so it lines up with the rest)
@@ -505,8 +526,8 @@ class ClaudeFaceView extends WatchUi.WatchFace {
         var t = hour.format("%02d") + ":" + clock.min.format("%02d");
         var ty = px(h * TIME_Y);
         if (_lowPower) {
-            // Always-on: the time in the hollow outline font, never the glow bitmaps (a lit bloom
-            // would blow the AMOLED burn-in budget). It must not MOVE on entering sleep, so it
+            // Always-on: the plain time font (hollow outline instead if AOD_OUTLINE), never the
+            // glow bitmaps (a lit bloom would blow the AMOLED burn-in budget). It must not MOVE on entering sleep, so it
             // keeps the left edge the high-power time has: centred on the width of the whole
             // HH:MM:SS (both paths centre on that, see GlowTime.draw / text()). The outline font
             // shares the solid font's line metrics and advance (monospace), so each digit lands
@@ -521,7 +542,7 @@ class ClaudeFaceView extends WatchUi.WatchFace {
                 shown = t + ":" + sec.format("%02d");
             }
             ink(dc, VALUE);
-            dc.drawText(left, ty, (_fontTimeO != null) ? _fontTimeO : solid, shown,
+            dc.drawText(left, ty, (AOD_OUTLINE && _fontTimeO != null) ? _fontTimeO : solid, shown,
                 Graphics.TEXT_JUSTIFY_LEFT);
             return;
         }
@@ -571,6 +592,25 @@ class ClaudeFaceView extends WatchUi.WatchFace {
     (:font_time)
     private function timeBand(h as Numeric) as Array<Number> {
         return [px(h * TIME_Y), Graphics.getFontHeight(timeFont()) + 1];
+    }
+
+    //! Scanlines on: the background's own line colour in every scanline row (the rows the scan tile
+    //! darkens), drawn before any content so text and glow draw over it. With the scan tile on top,
+    //! the background's lines end up darker than the text's. Same screen-aligned phase as the
+    //! tile: rows where y % SCAN_PITCH == SCAN_PITCH - 1. Not in always-on (black background).
+    (:mesh_overlay)
+    private function drawBgLines(dc as Dc, x as Number, y as Number, w as Number, h as Number) as Void {
+        if (!_scanlines || _lowPower || BG_LINE == BG) { return; }
+        dc.setColor(BG_LINE, BG_LINE);
+        var first = y + ((SCAN_PITCH - 1 - (y % SCAN_PITCH)) + SCAN_PITCH) % SCAN_PITCH;
+        for (var r = first; r < y + h; r += SCAN_PITCH) {
+            dc.fillRectangle(x, r, w, 1);
+        }
+    }
+
+    //! Plain build: no overlay, so no background lines either.
+    (:plain_overlay)
+    private function drawBgLines(dc as Dc, x as Number, y as Number, w as Number, h as Number) as Void {
     }
 
     (:mesh_overlay)

@@ -47,14 +47,17 @@ SCAN_DIR = ROOT / "resources-scanlines" / "drawables"
 METRICS = ROOT / "source-glow" / "GlowTimeMetrics.mc"
 
 CHARS = "0123456789:"
-PAD = 18
+PAD = 26                     # room for the bloom (widened with it, 2026-09-29)
 Y_CALIBRATION = 1            # CIQ draws font glyphs one row below line top + yoffset (measured)
-GLOW_TIGHT, GLOW_WIDE = 0.60, 0.42
+GLOW_TIGHT, GLOW_WIDE = 0.85, 0.60     # bleed 145 % r5 from the editor (was 0.60 / 0.42)
+GLOW_TIGHT_SIGMA, GLOW_WIDE_SIGMA = 3.5, 9.0   # (was 2.2 / 7.0)
 BEVEL = 0.30
 # CRT scanlines (the "Scanlines" setting, instead of the mesh): every SCAN_PITCH-th screen row
 # darkened by SCAN_DIM - horizontal only, like an old monitor. Same tile size as the shared mesh
 # (mesh_tile.MESH_TILE) so it lines up with the screen the same way the mesh does.
-SCAN_PITCH, SCAN_DIM = 3, 0.45
+# From the layout editor's Scanlines panel, 2026-09-29: "on text" 38 % (was 45 %). The background's
+# own, darker line colour is drawn by the face (ClaudeFaceView.drawBgLines) before the content.
+SCAN_PITCH, SCAN_DIM = 3, 0.38
 
 # One glow digit set per colour theme (the "Theme" setting). Resource ids are PREFIX + digit
 # (+ "C" for the colon); the face loads only the active set. Night Owl's colours are the ones
@@ -114,8 +117,8 @@ def render(mask: np.ndarray, face: tuple, glow: tuple) -> Image.Image:
     def bloom(sig, gain):
         return (np.stack([gaussian_filter(src[..., c], sig) for c in range(3)], -1) * gain,
                 gaussian_filter(mask, sig) * gain)
-    p1, a1 = bloom(2.2, GLOW_TIGHT)
-    p2, a2 = bloom(7.0, GLOW_WIDE)
+    p1, a1 = bloom(GLOW_TIGHT_SIGMA, GLOW_TIGHT)
+    p2, a2 = bloom(GLOW_WIDE_SIGMA, GLOW_WIDE)
     gp, ga = np.clip(p1 + p2, 0, 1), np.clip(a1 + a2, 0, 1)
     out_p = face_p + gp * (1 - mask[..., None])
     out_a = np.clip(mask + ga * (1 - mask), 0, 1)
