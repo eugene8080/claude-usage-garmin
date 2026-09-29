@@ -22,7 +22,7 @@ class ClaudeGridSettingsMenu extends WatchUi.Menu2 {
 
 //! Face-computed fields a slot can show instead of the editor's pick. Garmin's editor lists only
 //! complications, and there is no complication for these, so the face reads them itself
-//! (Weather.getCurrentConditions / System.getSystemStats). The values are the DataNField property
+//! (WeatherNow in garmin/shared/source-weather / System.getSystemStats). The values are the DataNField property
 //! values and the settings.xml listEntry values - keep all three in the same order.
 module GridField {
     enum {

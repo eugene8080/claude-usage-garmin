@@ -11,7 +11,9 @@ with a glowing VFD time. In always-on (low power) the time drops its glow (plain
 on Claude Grid.
 
 A weather line sits at the top (condition icon, temperature and feels-like temperature, from
-`Toybox.Weather`; the icons
+`Toybox.Weather` through the shared `WeatherNow` in `garmin/shared/source-weather/`, which falls
+back to the stored hourly forecast - drawn `~32°` - once the phone has been away long enough for
+the observation to go stale; the icons
 are Claude Grid's `cg_icon`, copied as `stm_icon` by `tools/build_fonts_terminal.py`). Garmin
 Connect settings add a **colour theme** - **Retro tube** by default (green phosphor on a dark
 green background, 80 %+ bars in the brightest green #11ff00; its own glow digit set, `rt*`, from

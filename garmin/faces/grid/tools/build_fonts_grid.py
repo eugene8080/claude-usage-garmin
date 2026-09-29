@@ -34,10 +34,12 @@ WEIGHT = None  # static Regular TTF - no weight axis (the synthwave design, edit
 # TTF, FACE, WEIGHT = os.path.join(HERE, "ChivoMono-VariableFont_wght.ttf"), "Chivo Mono", 500
 DIGITS = "0123456789"
 UPPER = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-# space, colon, percent, slash, dot, minus, degree + the punctuation complication values can carry.
+# space, colon, percent, slash, dot, minus, degree + the punctuation complication values can carry,
+# and the tilde that marks a weather value read from the stored forecast (WeatherNow's offline
+# fallback: "~31°").
 # The fonts have NO lowercase: the face upper-cases every value/label, so anything missing here
 # would draw as a tofu box (e.g. "Fri"/"Sep" before values were upper-cased).
-SYM = " :%/.-°,+'()!?&#"
+SYM = " :%/.-°,+'()!?&#~"
 
 # (out_base, size, glyphs, atlas_w, stroke)
 FONTS = [

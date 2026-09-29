@@ -1,6 +1,6 @@
 # garmin/shared
 
-Updated: 2026-09-27
+Updated: 2026-09-29
 
 Files used by more than one Garmin project, kept here once instead of copied into each.
 A project pulls them in through its `monkey.jungle` by relative path — nothing is duplicated.
@@ -10,6 +10,7 @@ A project pulls them in through its `monkey.jungle` by relative path — nothing
 | `resources-round-454x454/` | Launcher icon, 454 px family (fēnix 8 47 mm / tactix 8, fēnix 8 Pro 47 mm) | watch app, Claude Grid, Claude Terminal |
 | `resources-round-416x416/` | Launcher icon, 416 px family (fēnix 8 43 mm) | watch app, Claude Grid, Claude Terminal |
 | `resources-mesh/` | `MeshTile` — the full-face VFD mesh overlay | Claude Grid, Claude Terminal |
+| `source-weather/` | `WeatherNow` — the weather reading the faces show, falling back to the stored hourly forecast (marked "~") once the phone has been away long enough for the observation to go stale | Claude Grid, Claude Terminal |
 | `tools/genfont.py` | TTF → Connect IQ bitmap font (`.fnt` + atlas) generator | both faces' `tools/build_fonts*.py` |
 | `tools/mesh_tile.py` | Generator for `resources-mesh/` | both faces' glow generators |
 | `tools/IBMPlexMono-Regular.ttf` | The faces' typeface (OFL — `tools/IBMPlexMono-OFL.txt`) | both faces' font builders |
@@ -25,6 +26,8 @@ fenix847mm.resourcePath = $(base.resourcePath);../../shared/resources-round-454x
 ```
 
 (`garmin/watch-app/` is one level shallower, so it uses `../shared/`.)
+
+Source folders go on the source path the same way: `base.sourcePath = source;../../shared/source-weather`.
 
 Python generators import the shared tools by putting this folder on `sys.path`:
 
