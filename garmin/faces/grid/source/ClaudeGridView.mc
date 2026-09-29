@@ -540,12 +540,13 @@ class ClaudeGridView extends WatchUi.WatchFace {
                     icon = humidityGlyph(hum);
                 }
             } else if (field == GridField.PRECIP) {
-                icon = 0xebf1;   // umbrella
+                icon = rainGlyph(null);   // a dry umbrella until there is a reading
                 label = "RAIN";
                 if (cc != null && cc.precipitationChance != null) {
                     var pc = cc.precipitationChance as Number;
                     value = pc.format("%d") + "%";
                     frac = pc / 100.0;
+                    icon = rainGlyph(pc);
                 }
             } else if (field == GridField.WIND) {
                 icon = 0xec34;   // wind, until a bearing is known
@@ -580,6 +581,16 @@ class ClaudeGridView extends WatchUi.WatchFace {
         if (step < 0) { step = 0; }
         if (step > 5) { step = 5; }
         return 0xE010 + step;
+    }
+
+    //! The chance-of-rain umbrella with more drops the likelier the rain, in quarter steps: 0-12%
+    //! dry, 13-37% one drop, 38-62% two, 63%+ three. 0xE020-0xE023 (solid_icons.rain_chance).
+    private function rainGlyph(pct as Number or Null) as Number {
+        if (pct == null) { return 0xE020; }
+        var step = ((pct as Number) + 12) / 25;
+        if (step < 0) { step = 0; }
+        if (step > 3) { step = 3; }
+        return 0xE020 + step;
     }
 
     //! The battery icon at its charge level, as Garmin draws its own: empty, 1-4 bars, or the

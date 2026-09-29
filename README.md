@@ -126,7 +126,7 @@ is why the watch app must be installed (and opened once) for the faces to show C
   Usage; a built-in field (weather, heart rate, stress, Body Battery…) opens the watch's own screen
   for it, where the watch offers one. The battery arc opens whatever it gauges, and the date or
   the weekday strip opens the calendar. Holding the time still does what it always did.
-- **Humidity, wind and chance of rain** — plus **battery in days** — for any slot (the humidity droplet fills with the reading): Garmin's
+- **Humidity, wind and chance of rain** — plus **battery in days** — for any slot (the humidity droplet fills with the reading; the rain umbrella gets more drops the likelier the rain): Garmin's
   editor lists only complications and has none for these, so they're a face setting instead
   (*Data fields* in the face settings on the watch, or in Garmin Connect), which overrides the
   editor's pick for that slot. Wind shows an arrow for the way it's blowing, then direction and
@@ -167,8 +167,9 @@ is why the watch app must be installed (and opened once) for the faces to show C
   of the VFD mesh; on by default) and **Show seconds**. A sideloaded face can only be set on the watch — Garmin Connect edits settings only
   for faces installed from the Connect IQ Store.
 - VFD style by default (glowing time + full-face mesh).
-- Always-on (low power), like Claude Grid: the time becomes a thin outline **HH:MM** that stays
-  exactly where it was (only the seconds drop), the three Claude bars become outlines, and the
+- Always-on (low power), like Claude Grid: the time becomes a thin outline that stays exactly
+  where it was, its **seconds frozen** on the second the watch went to sleep, then `:00` from the
+  next minute, the three Claude bars become outlines, and the
   grey tracks go, while the VFD mesh or scanlines stay — about 6% of the screen lit.
 
 ### Layout editors
