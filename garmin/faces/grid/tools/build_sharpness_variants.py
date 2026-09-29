@@ -195,7 +195,8 @@ def stage(v: Variant, base_ref: str) -> Path:
         # Each feature is an (annotation pair, extra folders) switch; the jungle is rewritten so
         # the chosen implementation of drawGlowTime / drawMeshOverlay is the one compiled in.
         # WeatherNow (garmin/shared/source-weather) is part of every build; stage_shared() copies it.
-        src_paths, res_paths = ["source", SHARED_PREFIX + "source-weather"], ["resources"]
+        src_paths = ["source", SHARED_PREFIX + "source-weather"]
+        res_paths = ["resources", SHARED_PREFIX + "resources-hko"]   # the HKO station setting
         exclude = ["font_time" if v.glow_res else "glow_time",
                    "plain_overlay" if v.mesh else "mesh_overlay"]
         folders: list[str] = []

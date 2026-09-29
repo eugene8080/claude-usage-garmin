@@ -7,6 +7,9 @@ import Toybox.Weather;
 
 //! The weather both faces show as "now", with an offline fallback to the stored hourly forecast.
 //!
+//! With an HKO station set (the HkoStation setting), the Hong Kong Observatory's station readings
+//! come first - see Hko.mc; everything described below is the Garmin path used when they don't.
+//!
 //! Garmin's current conditions reach the watch only while the phone is connected (Garmin Connect
 //! relays them). Weather.getCurrentConditions() returns the most recently CACHED observation, so
 //! with the phone away it keeps returning the last one synced, however old. That same sync also
@@ -77,6 +80,12 @@ module WeatherNow {
             cc = Weather.getCurrentConditions();
         } catch (e) {
             cc = null;
+        }
+        // Hong Kong Observatory first, when a station is set and its reading is recent (Hko.mc);
+        // everything below is the Garmin path, used otherwise.
+        var hko = Hko.reading(cc);
+        if (hko != null) {
+            return hko;
         }
         var now = Time.now().value();
         var age = null;

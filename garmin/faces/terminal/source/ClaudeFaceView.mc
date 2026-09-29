@@ -33,7 +33,8 @@ class ClaudeFaceView extends WatchUi.WatchFace {
     private var VALUE as Number = 0xD6DEEB;       // time + percentage + temperature
     private var TRACK as Number = 0x333333;       // empty bar background
     private var DIM as Number = 0x7F9C9C;         // date, labels, reset times
-    private var NEAR_CAP as Number = 0xEF5350;    // bar fill at 80%+
+    private var NEAR_CAP as Number = 0xEF5350;    // bar fill at 80%+; a red-level HKO warning
+    private var WARN as Number = 0xFFCB6B;        // an amber / yellow-level HKO warning (prompt line)
     private var BG as Number = 0x000000;          // high-power background (always-on is black)
     // The background in the scanline rows, before the scan tile darkens them by SCAN_DIM: chosen so
     // the background's lines end up darker than the text's (editor: "on background" 60 % vs "on
@@ -187,9 +188,11 @@ class ClaudeFaceView extends WatchUi.WatchFace {
             // (was the brightest green, 11FF00).
             ACCENT = 0x2BDC63; VALUE = 0x66FF8F; DIM = 0x1E9A48;
             TRACK = 0x0C3318; NEAR_CAP = 0xBF616A; BG = 0x041A0B; BG_LINE = 0x031107;
+            WARN = 0xD8F25A;   // a yellower phosphor, so a warning stands out from the green
         } else {
             ACCENT = 0x82AAFF; VALUE = 0xD6DEEB; DIM = 0x7F9C9C;
             TRACK = 0x333333; NEAR_CAP = 0xEF5350; BG = 0x000000; BG_LINE = 0x000000;
+            WARN = 0xFFCB6B;   // Night Owl's yellow
         }
         setGlowTheme(theme);
     }
@@ -420,6 +423,7 @@ class ClaudeFaceView extends WatchUi.WatchFace {
         dc.clear();
         drawBgLines(dc, 0, 0, w, h);   // scanlines: the background's own line rows, under everything
 
+        _alert = Hko.alert();          // the prompt line's HKO warning, kept for the seconds repaint
         drawWeather(dc, w, h);
         drawHeader(dc, w, h);
 
@@ -495,11 +499,23 @@ class ClaudeFaceView extends WatchUi.WatchFace {
         drawMeshOverlay(dc, w, h, 0, band[0], w, band[1]);
     }
 
+    //! The HKO warning shown on the prompt line (Hko.alert), refreshed on each full redraw so the
+    //! seconds repaint (onPartialUpdate -> drawHeader) doesn't re-read it every second.
+    private var _alert as Array or Null = null;
+
     //! Prompt line, time and date - the three lines the seconds repaint may touch.
     private function drawHeader(dc as Dc, w as Numeric, h as Numeric) as Void {
-        // Prompt line (the PromptText setting), accent colour.
-        ink(dc, ACCENT);
-        text(dc, w * PROMPT_X, h * PROMPT_Y, ft(), _prompt, Graphics.TEXT_JUSTIFY_CENTER);
+        // Prompt line: the PromptText setting in the accent colour - or, while a Hong Kong
+        // Observatory warning is in force, the most serious one as a shell alert ("! VERY HOT",
+        // "! T8 NE +1"), red for a red-level warning, WARN for the rest.
+        if (_alert != null) {
+            var a = _alert as Array;
+            ink(dc, (a[1] as Number) >= 2 ? NEAR_CAP : WARN);
+            text(dc, w * PROMPT_X, h * PROMPT_Y, ft(), "! " + Hko.alertText(a), Graphics.TEXT_JUSTIFY_CENTER);
+        } else {
+            ink(dc, ACCENT);
+            text(dc, w * PROMPT_X, h * PROMPT_Y, ft(), _prompt, Graphics.TEXT_JUSTIFY_CENTER);
+        }
 
         drawTime(dc, w, h);
 

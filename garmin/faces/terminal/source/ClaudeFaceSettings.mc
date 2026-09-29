@@ -20,6 +20,8 @@ class ClaudeFaceSettingsMenu extends WatchUi.Menu2 {
             :scan, FaceSettings.readBool("Scanlines", true), null));
         addItem(new WatchUi.ToggleMenuItem(Rez.Strings.showSecondsTitle, null,
             :secs, FaceSettings.readBool("ShowSeconds", true), null));
+        // HKO weather: the station, and when its last reading came in (garmin/shared/source-weather).
+        addItem(new WatchUi.MenuItem(Rez.Strings.hkoStationTitle, Hko.menuSub(), :hko, null));
     }
 }
 
@@ -65,6 +67,10 @@ class ClaudeFaceSettingsDelegate extends WatchUi.Menu2InputDelegate {
             // The watch's text entry, prefilled with the current prompt.
             WatchUi.pushView(new WatchUi.TextPicker(FaceSettings.readPrompt()),
                 new ClaudeFacePromptDelegate(_menu), WatchUi.SLIDE_LEFT);
+            return;
+        }
+        if (id == :hko) {
+            WatchUi.pushView(new HkoStationMenu(), new HkoStationDelegate(_menu, :hko), WatchUi.SLIDE_LEFT);
             return;
         }
         var on = (item as WatchUi.ToggleMenuItem).isEnabled();

@@ -6,13 +6,14 @@ project.manifest = manifest.xml
 # instead of the mesh when the Scanlines setting is on). The plain terminal face (font time,
 # no overlay) is compiled by switching these three lines to:
 #   base.sourcePath = source;../../shared/source-weather
-#   base.resourcePath = resources
+#   base.resourcePath = resources;../../shared/resources-hko
 #   base.excludeAnnotations = glow_time;mesh_overlay
 # ../../shared/source-weather is WeatherNow, the weather reading both faces share (with the
-# offline fallback to the stored hourly forecast) - every build needs it.
+# offline fallback to the stored hourly forecast, and the HKO weather service) - every build
+# needs it, and ../../shared/resources-hko (HKO station names + the HkoStation setting) with it.
 # Paths are relative to this file; ../../shared/ is garmin/shared/ (see its README).
 base.sourcePath = source;source-glow;../../shared/source-weather
-base.resourcePath = resources;resources-glow;../../shared/resources-mesh;resources-scanlines
+base.resourcePath = resources;resources-glow;../../shared/resources-mesh;resources-scanlines;../../shared/resources-hko
 base.excludeAnnotations = font_time;plain_overlay
 
 # Per-family launcher icons (size-specific), shared by all three Garmin apps.
