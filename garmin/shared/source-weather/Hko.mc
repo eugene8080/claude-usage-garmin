@@ -19,6 +19,8 @@ import Toybox.WatchUi;
 //!
 //! What HKO supplies, and how old each part may be before it is ignored:
 //!   temperature, humidity, wind   the station's minute readings           READING_MAX_AGE (75 min)
+//!                                 (on a watch the minute CSVs fail, so the temperature and
+//!                                 humidity come from the hourly report; see HkoService)
 //!   condition icon                the hourly report's icon                ICON_MAX_AGE (3 h)
 //!   warnings                      the warnings in force                   WARN_MAX_AGE (2 h)
 //! The chance of rain has no HKO equivalent (HKO forecasts it per day, in words), so it stays
