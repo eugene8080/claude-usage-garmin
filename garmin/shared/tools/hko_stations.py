@@ -2,7 +2,9 @@
 
 Run from anywhere:  python garmin/shared/tools/hko_stations.py
 
-The faces read HKO's minute-level station feeds (garmin/shared/source-weather/HkoService.mc):
+The faces read HKO's minute-level station feeds through the hko-proxy Worker (garmin/hko-proxy/;
+a watch can't read the CSVs itself), passing it the names from this table
+(garmin/shared/source-weather/HkoService.mc):
 
     latest_1min_temperature.csv   39 stations   temperature, every minute
     latest_1min_humidity.csv      26 stations   relative humidity, every minute

@@ -1,0 +1,3 @@
+# wrangler dev / deploy state
+.wrangler/
+node_modules/

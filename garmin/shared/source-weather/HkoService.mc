@@ -10,34 +10,37 @@ import Toybox.Time.Gregorian;
 //! (Hko.schedule). Like every Connect IQ web request it goes through Garmin Connect on the phone;
 //! with the phone away the requests fail at once (-104) and the face falls back to Garmin weather.
 //!
-//! One run makes five requests, one after another (a background run has 30 s and ~64 KB, so they
-//! are chained, never in flight together), for the station the HkoStation setting names:
+//! Normally ONE request, to hko-proxy (garmin/hko-proxy/, a Cloudflare Worker), which returns
+//! everything for the station the HkoStation setting names:
 //!
-//!   1  latest_1min_temperature.csv   the station's temperature          -> t  (tt = reading time)
-//!   2  latest_1min_humidity.csv      its (or the nearest) humidity      -> h  (ht)
-//!   3  latest_10min_wind.csv         its (or the nearest) mean wind     -> ws km/h, wd deg, wg (wt)
-//!   4  rhrread (JSON, hourly)        HKO's weather icon                 -> i  (it); and, if
-//!                                    request 1 failed, the temperature (hourly, by name), and
-//!                                    if request 2 failed, the humidity (the Observatory's)
-//!   5  warnsum (JSON)                warnings in force                  -> w  (codes), wf (fetch time)
+//!   1  hko-proxy /hko?st=&hum=&wind=&rhr=    the station's minute temperature and humidity and
+//!                                            the nearest 10-minute wind (t/tt, h/ht, ws/wd/wg/wt),
+//!                                            HKO's icon (i/it) and the warnings in force (w/wf)
 //!
-//! A failed request just leaves its keys out: Hko.merge keeps the previous values, each with its
-//! own timestamp, and the face ignores whatever has aged out. Response codes that were not 200 are
-//! reported as e1..e5 (for the on-watch settings row, which shows the last fetch's outcome).
+//! Why a proxy: HKO serves its minute-level station feeds (latest_1min_*.csv, latest_10min_wind.csv)
+//! as CSV with the Content-Type headers "application/octet-stream" and "text/csv". Garmin Connect
+//! only relays a response whose Content-Type matches the request exactly ("text/plain" for
+//! HTTP_RESPONSE_CONTENT_TYPE_TEXT_PLAIN), so on a watch those requests always failed; the
+//! simulator makes its own HTTP requests without that check, which is why they worked there
+//! (found on the first tactix 8 install, 2026-09-29). The Worker reads them and answers in plain
+//! "application/json".
 //!
-//! The CSVs are read as text: they are ~1 KB each ("YYYYMMDDhhmm,Station,value[,value...]" per
-//! line, HKT timestamps, no BOM, "\n" line ends), and only the one line wanted is copied out.
+//! If the proxy fails (any non-200, reported as e1), two direct HKO requests take over, both JSON
+//! with a Content-Type Garmin Connect accepts:
 //!
-//! On a real watch the CSV requests are expected to fail. HTTP_RESPONSE_CONTENT_TYPE_TEXT_PLAIN
-//! requires a "text/plain" Content-Type (SDK docs), and HKO serves the CSVs with two headers,
-//! "application/octet-stream" and "text/csv". The simulator makes its own HTTP requests without
-//! that check, so there all five work. The first tactix 8 install (2026-09-29) showed the HKO
-//! temperature and warning but no feels-like, i.e. no HKO humidity. Hence the rhrread fallbacks in
-//! request 4: on the watch, temperature and humidity come from HKO's hourly report.
+//!   2  rhrread (hourly report)   the icon; the station's temperature (hourly, by its rhrread
+//!                                name); the Observatory's humidity (the report's only one)
+//!   3  warnsum                   the warnings in force
+//!
+//! so the face still shows HKO, hourly and without HKO's wind. `tm` records which feed the
+//! temperature came from (1 = the minute feed via the proxy, 0 = the hourly report) for the
+//! settings row. A failed request just leaves its keys out: Hko.merge keeps the previous values,
+//! each with its own timestamp, and the face ignores whatever has aged out.
 (:background)
 class HkoService extends System.ServiceDelegate {
 
-    private const CSV_BASE = "https://data.weather.gov.hk/weatherAPI/hko_data/regional-weather/";
+    //! The deployed hko-proxy Worker (garmin/hko-proxy/README.md). Change here if it moves.
+    private const PROXY_URL = "https://hko-proxy.ewong.workers.dev/hko";
     private const API_BASE = "https://data.weather.gov.hk/weatherAPI/opendata/weather.php";
     //! HKO publishes every time in Hong Kong Time, UTC+8 (no daylight saving).
     private const HKT_OFFSET = 28800;
@@ -62,28 +65,33 @@ class HkoService extends System.ServiceDelegate {
     }
 
     //! Issue the next request of the chain, or hand the results to the face after the last one.
+    //! After a successful proxy response the chain ends at step 1.
     private function next() as Void {
         _step += 1;
         if (_step == 1) {
-            request(CSV_BASE + "latest_1min_temperature.csv", null, false, method(:onTemperature));
+            var params = {
+                "st" => HkoStations.TEMP[_id],
+                "hum" => HkoStations.HUM[_id],
+                "wind" => HkoStations.WIND[_id]
+            };
+            var rhr = HkoStations.RHR[_id];
+            if (!rhr.equals("")) {
+                params["rhr"] = rhr;
+            }
+            request(PROXY_URL, params, method(:onProxy));
         } else if (_step == 2) {
-            request(CSV_BASE + "latest_1min_humidity.csv", null, false, method(:onHumidity));
+            request(API_BASE, { "dataType" => "rhrread", "lang" => "en" }, method(:onReport));
         } else if (_step == 3) {
-            request(CSV_BASE + "latest_10min_wind.csv", null, false, method(:onWind));
-        } else if (_step == 4) {
-            request(API_BASE, { "dataType" => "rhrread", "lang" => "en" }, true, method(:onReport));
-        } else if (_step == 5) {
-            request(API_BASE, { "dataType" => "warnsum", "lang" => "en" }, true, method(:onWarnings));
+            request(API_BASE, { "dataType" => "warnsum", "lang" => "en" }, method(:onWarnings));
         } else {
             Background.exit(_out);
         }
     }
 
-    private function request(url as String, params as Dictionary?, json as Boolean, cb as Method) as Void {
+    private function request(url as String, params as Dictionary, cb as Method) as Void {
         var options = {
             :method => Communications.HTTP_REQUEST_METHOD_GET,
-            :responseType => json ? Communications.HTTP_RESPONSE_CONTENT_TYPE_JSON
-                                  : Communications.HTTP_RESPONSE_CONTENT_TYPE_TEXT_PLAIN
+            :responseType => Communications.HTTP_RESPONSE_CONTENT_TYPE_JSON
         };
         try {
             Communications.makeWebRequest(url, params, options, cb);
@@ -103,63 +111,49 @@ class HkoService extends System.ServiceDelegate {
         return false;
     }
 
-    // ---- 1-3: the regional CSVs ----
+    // ---- 1: the proxy - everything at once ----
 
-    public function onTemperature(code as Number, data) as Void {
-        if (ok(code)) {
-            var row = csvRow(data, HkoStations.TEMP[_id]);
-            if (row != null && row.size() >= 2) {
-                var v = (row[1] as String).toFloat();
-                if (v != null) {
-                    _out["t"] = v;
-                    _out["tt"] = row[0];
-                }
-            }
+    //! Copies the proxy's keys (each group only when present, types checked) and ends the chain.
+    //! On failure the direct requests 2 and 3 follow.
+    public function onProxy(code as Number, data) as Void {
+        if (!ok(code) || !(data instanceof Dictionary)) {
+            next();
+            return;
         }
-        next();
+        var d = data as Dictionary;
+        if (isNum(d["t"]) && d["tt"] instanceof Number) {
+            _out["t"] = d["t"].toFloat();
+            _out["tt"] = d["tt"];
+            var src = d["src"];
+            _out["tm"] = (src instanceof Dictionary && "min".equals((src as Dictionary)["t"])) ? 1 : 0;
+        }
+        if (d["h"] instanceof Number && d["ht"] instanceof Number) {
+            _out["h"] = d["h"];
+            _out["ht"] = d["ht"];
+        }
+        if (d["ws"] instanceof Number && d["wt"] instanceof Number) {
+            _out["ws"] = d["ws"];
+            _out["wt"] = d["wt"];
+            if (d["wd"] instanceof Number) { _out["wd"] = d["wd"]; }
+            if (d["wg"] instanceof Number) { _out["wg"] = d["wg"]; }
+        }
+        if (d["i"] instanceof Number && d["it"] instanceof Number) {
+            _out["i"] = d["i"];
+            _out["it"] = d["it"];
+        }
+        if (d["w"] instanceof Array && d["wf"] instanceof Number) {
+            var codes = [] as Array<String>;
+            var w = d["w"] as Array;
+            for (var k = 0; k < w.size(); k++) {
+                if (w[k] instanceof String) { codes.add(w[k] as String); }
+            }
+            _out["w"] = codes;
+            _out["wf"] = d["wf"];
+        }
+        Background.exit(_out);
     }
 
-    public function onHumidity(code as Number, data) as Void {
-        if (ok(code)) {
-            var row = csvRow(data, HkoStations.HUM[_id]);
-            if (row != null && row.size() >= 2) {
-                var v = (row[1] as String).toNumber();
-                if (v != null && v >= 0 && v <= 100) {
-                    _out["h"] = v;
-                    _out["ht"] = row[0];
-                }
-            }
-        }
-        next();
-    }
-
-    //! "YYYYMMDDhhmm,Station,<direction word>,<mean km/h>,<gust km/h>". A calm or variable wind has
-    //! a speed but no bearing; "N/A" in the speed means the station isn't reporting.
-    public function onWind(code as Number, data) as Void {
-        if (ok(code)) {
-            var row = csvRow(data, HkoStations.WIND[_id]);
-            if (row != null && row.size() >= 3) {
-                var speed = (row[2] as String).toNumber();
-                if (speed != null) {
-                    _out["ws"] = speed;
-                    _out["wt"] = row[0];
-                    var bearing = compass(row[1] as String);
-                    if (bearing != null) {
-                        _out["wd"] = bearing;
-                    }
-                    if (row.size() >= 4) {
-                        var gust = (row[3] as String).toNumber();
-                        if (gust != null) {
-                            _out["wg"] = gust;
-                        }
-                    }
-                }
-            }
-        }
-        next();
-    }
-
-    // ---- 4: the hourly report - the icon, and the temperature if the minute feed failed ----
+    // ---- 2: the hourly report (fallback) - icon, temperature, the Observatory's humidity ----
 
     public function onReport(code as Number, data) as Void {
         if (ok(code) && data instanceof Dictionary) {
@@ -173,7 +167,7 @@ class HkoService extends System.ServiceDelegate {
                 }
             }
             var name = HkoStations.RHR[_id];
-            if (_out["t"] == null && !name.equals("")) {
+            if (!name.equals("")) {
                 var temp = d["temperature"];
                 if (temp instanceof Dictionary) {
                     var rows = (temp as Dictionary)["data"];
@@ -183,9 +177,10 @@ class HkoService extends System.ServiceDelegate {
                             var r = (rows as Array)[k];
                             if (r instanceof Dictionary && name.equals((r as Dictionary)["place"])) {
                                 var v = (r as Dictionary)["value"];
-                                if (v instanceof Number || v instanceof Float) {
+                                if (isNum(v)) {
                                     _out["t"] = v.toFloat();
                                     _out["tt"] = when;
+                                    _out["tm"] = 0;
                                 }
                                 break;
                             }
@@ -193,21 +188,19 @@ class HkoService extends System.ServiceDelegate {
                     }
                 }
             }
-            // The humidity, if request 2 failed. rhrread reports it for the Observatory only, as one
-            // hourly figure. That still gives the face a heat index, and it stays within HKO (Hko.mc
-            // never mixes Garmin's humidity into the feels-like).
-            if (_out["h"] == null) {
-                var hum = d["humidity"];
-                if (hum instanceof Dictionary) {
-                    var hrows = (hum as Dictionary)["data"];
-                    var hwhen = isoEpoch((hum as Dictionary)["recordTime"]);
-                    if (hrows instanceof Array && (hrows as Array).size() > 0 && hwhen != null
-                            && (hrows as Array)[0] instanceof Dictionary) {
-                        var hv = ((hrows as Array)[0] as Dictionary)["value"];
-                        if (hv instanceof Number && (hv as Number) >= 0 && (hv as Number) <= 100) {
-                            _out["h"] = hv as Number;
-                            _out["ht"] = hwhen;
-                        }
+            // rhrread reports humidity for the Observatory only, as one hourly figure. That still
+            // gives the face a heat index, and it stays within HKO (Hko.mc never mixes Garmin's
+            // humidity into the feels-like).
+            var hum = d["humidity"];
+            if (hum instanceof Dictionary) {
+                var hrows = (hum as Dictionary)["data"];
+                var hwhen = isoEpoch((hum as Dictionary)["recordTime"]);
+                if (hrows instanceof Array && (hrows as Array).size() > 0 && hwhen != null
+                        && (hrows as Array)[0] instanceof Dictionary) {
+                    var hv = ((hrows as Array)[0] as Dictionary)["value"];
+                    if (hv instanceof Number && (hv as Number) >= 0 && (hv as Number) <= 100) {
+                        _out["h"] = hv as Number;
+                        _out["ht"] = hwhen;
                     }
                 }
             }
@@ -215,7 +208,7 @@ class HkoService extends System.ServiceDelegate {
         next();
     }
 
-    // ---- 5: warnings in force ----
+    // ---- 3: warnings in force (fallback) ----
 
     //! warnsum is one entry per warning type in force, e.g. {"WHOT":{"code":"WHOT","actionCode":
     //! "REISSUE",...}, "WTCSGNL":{"code":"TC8NE",...}}. A just-cancelled warning can still be listed
@@ -246,57 +239,8 @@ class HkoService extends System.ServiceDelegate {
 
     // ---- parsing ----
 
-    //! The fields of `station`'s line in an HKO regional CSV, as [readingEpoch, field1, field2, ...]
-    //! (fields as Strings, the station name itself left out), or null if it isn't there.
-    //! Lines are "YYYYMMDDhhmm,<station>,<fields...>"; the name is matched between commas, so
-    //! "Kai Tak" never matches "Kai Tak Runway Park".
-    private function csvRow(data, station as String) as Array or Null {
-        if (!(data instanceof String) || station.equals("")) {
-            return null;
-        }
-        var s = data as String;
-        var key = "," + station + ",";
-        var i = s.find(key);
-        if (i == null || i < 12) {
-            return null;
-        }
-        var when = stampEpoch(s.substring(i - 12, i) as String);
-        if (when == null) {
-            return null;
-        }
-        var rest = s.substring(i + key.length(), s.length()) as String;
-        var nl = rest.find("\n");
-        if (nl != null) {
-            rest = rest.substring(0, nl) as String;
-        }
-        var out = [when] as Array;
-        while (true) {
-            var c = rest.find(",");
-            if (c == null) {
-                out.add(trimCr(rest));
-                break;
-            }
-            out.add(rest.substring(0, c) as String);
-            rest = rest.substring(c + 1, rest.length()) as String;
-        }
-        return out;
-    }
-
-    private function trimCr(s as String) as String {
-        var n = s.length();
-        if (n > 0 && s.substring(n - 1, n).equals("\r")) {
-            return s.substring(0, n - 1) as String;
-        }
-        return s;
-    }
-
-    //! "202609291450" (HKT) -> epoch seconds.
-    private function stampEpoch(t as String) as Number or Null {
-        if (t.length() != 12) {
-            return null;
-        }
-        return hktEpoch(t.substring(0, 4), t.substring(4, 6), t.substring(6, 8),
-                        t.substring(8, 10), t.substring(10, 12));
+    private function isNum(v) as Boolean {
+        return v instanceof Number || v instanceof Float || v instanceof Double || v instanceof Long;
     }
 
     //! "2026-09-29T13:30:00+08:00" -> epoch seconds. HKO always writes +08:00.
@@ -323,17 +267,5 @@ class HkoService extends System.ServiceDelegate {
         var m = Gregorian.moment({ :year => yy, :month => mm, :day => dd, :hour => hh,
                                    :minute => nn, :second => 0 });
         return m.value() - HKT_OFFSET;
-    }
-
-    //! The wind CSV's direction word -> the bearing it blows FROM, in degrees (the Weather API's
-    //! convention). "Variable", "Calm" and "N/A" have none.
-    private function compass(word as String) as Number or Null {
-        var names = ["North", "Northeast", "East", "Southeast", "South", "Southwest", "West", "Northwest"];
-        for (var k = 0; k < names.size(); k++) {
-            if (word.equals(names[k])) {
-                return k * 45;
-            }
-        }
-        return null;
     }
 }
