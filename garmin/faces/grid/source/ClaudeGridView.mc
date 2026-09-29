@@ -330,7 +330,7 @@ class ClaudeGridView extends WatchUi.WatchFace {
                 // Current weather: the actual temperature over the feels-like one (wind chill or
                 // heat index), stacked like the high/low chip. "FL" marks the second reading, as
                 // "H" / "L" do there. Garmin has no feels-like complication type, so this is the
-                // only way onto the face - read from Weather.getCurrentConditions(). Only a plain
+                // only way onto the face - read through WeatherNow (currentWeather). Only a plain
                 // chip draws two lines; in a ring or the one-row Data 01 the current reading stays.
                 slot.valueTop = vs;
                 slot.valueBot = "FL" + feels;
@@ -528,40 +528,43 @@ class ClaudeGridView extends WatchUi.WatchFace {
                 value = Math.round(st.batteryInDays).toNumber().format("%d") + "D";
             }
         } else {
-            var cc = null;
-            try { cc = Weather.getCurrentConditions(); } catch (e) {}
+            // The weather fields read WeatherNow, like the current-weather slot: the observation,
+            // or with the phone away the stored forecast hour, whose values get the "~" mark.
+            var r = null;
+            try { r = WeatherNow.get(); } catch (e) {}
             if (field == GridField.HUMIDITY) {
                 icon = humidityGlyph(null);   // an empty droplet until there is a reading
                 label = "HUM";
-                if (cc != null && cc.relativeHumidity != null) {
-                    var hum = cc.relativeHumidity as Number;
-                    value = hum.format("%d") + "%";
+                if (r != null && r.humidity != null) {
+                    var hum = r.humidity as Number;
+                    value = wxMark(r, hum.format("%d") + "%");
                     frac = hum / 100.0;
                     icon = humidityGlyph(hum);
                 }
             } else if (field == GridField.PRECIP) {
                 icon = rainGlyph(null);   // a dry umbrella until there is a reading
                 label = "RAIN";
-                if (cc != null && cc.precipitationChance != null) {
-                    var pc = cc.precipitationChance as Number;
-                    value = pc.format("%d") + "%";
+                if (r != null && r.precipChance != null) {
+                    var pc = r.precipChance as Number;
+                    value = wxMark(r, pc.format("%d") + "%");
                     frac = pc / 100.0;
                     icon = rainGlyph(pc);
                 }
             } else if (field == GridField.WIND) {
                 icon = 0xec34;   // wind, until a bearing is known
                 label = "WIND";
-                if (cc != null && cc.windSpeed != null) {
-                    var sp = windSpeed(cc.windSpeed as Float);
+                if (r != null && r.windSpeed != null) {
+                    var sp = windSpeed(r.windSpeed as Float);
                     // "SW 19 KM/H", as Garmin's weather glance writes it (plus the unit). A narrow
                     // slot's auto-fit drops the words without digits first - the unit, then the
-                    // direction - so the speed always survives (ClaudeGridSlot.fitText).
+                    // direction - so the speed always survives (ClaudeGridSlot.fitText). The "~"
+                    // forecast mark rides on the speed ("SW ~19 KM/H") so it survives with it.
                     var statute = System.getDeviceSettings().distanceUnits == System.UNIT_STATUTE;
-                    value = sp.format("%d") + (statute ? " MPH" : " KM/H");
+                    value = wxMark(r, sp.format("%d")) + (statute ? " MPH" : " KM/H");
                     frac = sp / 60.0;   // a 60 km/h (or mph) gale fills the gauge
-                    if (cc.windBearing != null) {
-                        icon = windArrow(cc.windBearing as Number);
-                        value = windCompass(cc.windBearing as Number) + " " + value;
+                    if (r.windBearing != null) {
+                        icon = windArrow(r.windBearing as Number);
+                        value = windCompass(r.windBearing as Number) + " " + value;
                     }
                 }
             }
@@ -1131,32 +1134,38 @@ class ClaudeGridView extends WatchUi.WatchFace {
         return s + "°";
     }
 
-    //! [icon, value, feels] for current weather, straight from Weather.getCurrentConditions(): the
-    //! live temperature and the feels-like temperature (wind chill / heat index), both converted to
-    //! the watch's unit, and an icon for the actual condition, sun or moon variant by whether it's
-    //! currently between sunrise and sunset at that location. `feels` is "" when not reported.
+    //! [icon, value, feels] for current weather, from WeatherNow (garmin/shared/source-weather):
+    //! the live temperature and the feels-like temperature (wind chill / heat index), both
+    //! converted to the watch's unit, and an icon for the actual condition, sun or moon variant by
+    //! whether it's currently between sunrise and sunset at that location. `feels` is "" when not
+    //! reported. Once the observation is stale (phone away) the reading is the stored forecast for
+    //! the current hour: its temperature is marked "~31°" and it has no feels-like.
     private function currentWeather() as Array<String> {
         try {
-            var cc = Weather.getCurrentConditions();
-            if (cc == null) { return ["", "--", ""]; }
+            var r = WeatherNow.get();
+            if (r == null) { return ["", "--", ""]; }
             var val = "--";
-            var tc = cc.temperature;
-            if (tc != null) {
-                val = tempStr(tc);
+            if (r.temperature != null) {
+                val = wxMark(r, tempStr(r.temperature as Numeric));
             }
             var feels = "";
-            var fc = cc.feelsLikeTemperature;
-            if (fc != null) {
-                feels = tempStr(fc);
+            if (r.feelsLike != null) {
+                feels = tempStr(r.feelsLike as Numeric);
             }
             var icon = "";
-            if (cc.condition != null) {
-                icon = weatherGlyph(cc.condition as Number, isNight(cc)).toChar().toString();
+            if (r.condition != null) {
+                icon = weatherGlyph(r.condition as Number, isNight(r.location)).toChar().toString();
             }
             return [icon, val, feels];
         } catch (ex) {
             return ["", "--", ""];
         }
+    }
+
+    //! A weather value as drawn: "~" in front when it comes from the hourly forecast rather than an
+    //! observation (WeatherNow's offline fallback), so a forecast never passes for a measurement.
+    private function wxMark(r as WeatherNow.Reading, s as String) as String {
+        return r.forecast ? "~" + s : s;
     }
 
     //! A Celsius reading from the Weather API -> "32°" in the watch's temperature unit, rounded.
@@ -1170,8 +1179,7 @@ class ClaudeGridView extends WatchUi.WatchFace {
 
     //! True between local sunset and the next sunrise at the observation location. Unknown
     //! location or sun times -> daytime (the sun icons are the safer default).
-    private function isNight(cc as Weather.CurrentConditions) as Boolean {
-        var loc = cc.observationLocationPosition;
+    private function isNight(loc as Position.Location or Null) as Boolean {
         if (loc == null) { return false; }
         var now = Time.now();
         var rise = Weather.getSunrise(loc, now);

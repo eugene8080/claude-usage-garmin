@@ -3,6 +3,7 @@ import Toybox.Complications;
 import Toybox.Graphics;
 import Toybox.Lang;
 import Toybox.Math;
+import Toybox.Position;
 import Toybox.System;
 import Toybox.Time;
 import Toybox.Time.Gregorian;
@@ -738,28 +739,30 @@ class ClaudeFaceView extends WatchUi.WatchFace {
         }
     }
 
-    //! [icon, temperature, feels] from Weather.getCurrentConditions() - the same logic as Claude
-    //! Grid: live and feels-like (wind chill / heat index) temperatures in the watch's unit, and a
-    //! condition icon with the sun / moon variant by whether it's between sunrise and sunset.
-    //! ["", "", ""] when there is no weather data; feels is "" when it alone is not reported.
+    //! [icon, temperature, feels] from WeatherNow (garmin/shared/source-weather) - the same logic
+    //! as Claude Grid: live and feels-like (wind chill / heat index) temperatures in the watch's
+    //! unit, and a condition icon with the sun / moon variant by whether it's between sunrise and
+    //! sunset. ["", "", ""] when there is no weather data; feels is "" when it alone is not
+    //! reported. With the phone away long enough for the observation to go stale, the reading is
+    //! the stored forecast for the current hour: temperature "~31°", no feels-like.
     private function currentWeather() as Array<String> {
         if (!(Toybox has :Weather)) { return ["", "", ""]; }
         try {
-            var cc = Weather.getCurrentConditions();
-            if (cc == null) { return ["", "", ""]; }
+            var r = WeatherNow.get();
+            if (r == null) { return ["", "", ""]; }
             var temp = "";
-            var tc = cc.temperature;
-            if (tc != null) {
-                temp = tempStr(tc);
+            if (r.temperature != null) {
+                temp = tempStr(r.temperature as Numeric);
+                // A forecast must not pass for a measurement (WeatherNow's offline fallback).
+                if (r.forecast) { temp = "~" + temp; }
             }
             var feels = "";
-            var fc = cc.feelsLikeTemperature;
-            if (fc != null) {
-                feels = tempStr(fc);
+            if (r.feelsLike != null) {
+                feels = tempStr(r.feelsLike as Numeric);
             }
             var icon = "";
-            if (cc.condition != null) {
-                icon = weatherGlyph(cc.condition as Number, isNight(cc)).toChar().toString();
+            if (r.condition != null) {
+                icon = weatherGlyph(r.condition as Number, isNight(r.location)).toChar().toString();
             }
             return [icon, temp, feels];
         } catch (ex) {
@@ -778,8 +781,7 @@ class ClaudeFaceView extends WatchUi.WatchFace {
 
     //! True between local sunset and the next sunrise at the observation location; daytime when
     //! the location or sun times are unknown.
-    private function isNight(cc as Weather.CurrentConditions) as Boolean {
-        var loc = cc.observationLocationPosition;
+    private function isNight(loc as Position.Location or Null) as Boolean {
         if (loc == null) { return false; }
         var now = Time.now();
         var rise = Weather.getSunrise(loc, now);

@@ -140,6 +140,13 @@ is why the watch app must be installed (and opened once) for the faces to show C
   settings (on the watch or in Garmin Connect) brings the seconds back.
 - **Current Weather** shows the temperature with the **feels-like** temperature (`FL40°`) under
   it — Garmin has no feels-like complication, so the face reads it from the weather data itself.
+- **Weather keeps going when the phone is away.** Garmin's weather only refreshes through the
+  phone, so once the last reading is stale (1 h without the phone; 3 h if the phone is connected
+  but has stopped syncing) the weather slot and the humidity, rain and wind fields switch to the
+  **hourly forecast** the watch stored at the last sync, marked `~` (`~18°`, `~61%`) so a
+  forecast never passes for a measurement. It lasts as long as that forecast runs (12 hours in
+  the simulator); after that the fields go blank rather than show a reading hours old. Garmin's
+  own high/low complication is not affected.
 - **Data 08** shows a **second time zone** until you pick a complication for it, labelled with
   the city's code (NY, CHI, LA, LDN, PAR, ZUR, DUB, MUM, SG, HK, SHG, TOK, SYD, AUC or UTC); the
   city (daylight saving automatic) is a face setting on the watch or in Garmin Connect.
@@ -158,7 +165,8 @@ is why the watch app must be installed (and opened once) for the faces to show C
 - A segmented **battery bar** under the meters — Claude Grid's top battery arc, straightened (turns
   red at 20%).
 - **Weather** at the top, like Rad Lad: the current condition icon (solid, Garmin-style; sun / moon by time of day),
-  the temperature and the feels-like temperature (`32° FL40°`), in the watch's units.
+  the temperature and the feels-like temperature (`32° FL40°`), in the watch's units. With the
+  phone away it switches to the stored hourly forecast, marked `~32°`, as Claude Grid does.
 - **Hold a meter row** to open Claude Usage; hold the weather line, the date or the battery bar
   to open the watch's weather, calendar or battery screen (Garmin's hold-to-launch).
 - Settings — **on the watch** (hold the face → Settings) and in Garmin Connect for a store
