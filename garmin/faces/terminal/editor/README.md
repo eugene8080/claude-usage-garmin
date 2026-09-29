@@ -38,17 +38,21 @@ preview matches the simulator (checked: identical x, time identical y, text with
 python build_terminal_editor.py
 ```
 
-## Scanline lab
-**`scanline-lab.html`** tunes the CRT scanline effect on a real render of the face (Connect IQ
-simulator, fenix847mm, Retro tube, captured 1:1 with glow and overlay off: `lab/base_clean.png`).
-Sliders: line spacing, line thickness, how dark the lines are on the text and on the background
-(separately), background brightness, and bleed (glow) strength and radius. Presets sit side by
-side at true pixel size next to the face as it ships (`lab/base_current.png`), and a 3x view shows
-the time pixel for pixel. **Copy settings** gives a line to paste into the chat.
+## Scanlines panel
+The **Scanlines** panel tunes the CRT effect: line spacing, line thickness, how dark the lines are
+on the text and on the background (separately; negative = lines lighter than the background),
+background brightness, and bleed (glow) strength and radius, with presets (Today, Stronger,
+Pip-Boy, Fine and dense, Heavy CRT, Soft text, Light background lines). A 3x view under the watch
+shows the seconds pixel for pixel - judge the lines there, not on a scaled view. The chosen values
+go into the **Copy settings** block (`scanline look: ...`).
 
-It draws in the watch's order: background (with its own colour in the line rows), glow, the
-text, then the line overlay, rounded to the watch's 16-bit colours. So any setting it shows can
-be built on the watch: a background stripe tile, the scan tile's alpha, and the halo fonts / time
-glow rebuilt at the chosen radius and strength. Rebuild the page with
-`python build_scanline_lab.py` (or `--artifact <path>` for a claude.ai Artifact), and recapture the
-two base images from the simulator if the face's layout changes.
+With VFD style and Scanlines on, the preview draws in the watch's order: background (with its own
+colour in the line rows), glow, the text, then the line overlay, rounded to the watch's 16-bit
+colours - so any setting it shows can be built on the watch (a background stripe tile, the scan
+tile's alpha, the halo fonts / time glow rebuilt at the chosen radius and strength).
+
+**Preview** switches the watch between the editor's own drawing (layout editable), **True
+render** - the same settings run on a real simulator render of the face (`lab/base_clean.png`:
+fenix847mm, Retro tube, captured 1:1 with glow and overlay off) - and **As it ships**
+(`lab/base_current.png`). Recapture both from the simulator if the face's layout changes.
+`python build_terminal_editor.py --artifact <path>` writes the page for a claude.ai Artifact.

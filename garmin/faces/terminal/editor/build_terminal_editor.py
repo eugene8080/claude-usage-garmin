@@ -9,10 +9,28 @@
 # canvas font metrics (which equal the TTF metrics the watch fonts were generated from), so the
 # preview and the simulator agree for any font.
 #
-# Run:  python build_terminal_editor.py   ->  claude-terminal-editor.html  (next to this file)
+# Scanlines: the Scanlines panel tunes the CRT effect (spacing, thickness, darkness on text and on
+# background, background brightness, bleed). With scanlines on, the preview runs the watch's own
+# drawing order over the face - background (its own colour in the line rows), glow, the text, the
+# line overlay - rounded to the watch's 16-bit colours, so what it shows can be built on the watch.
+# "True render" runs the same settings on a real simulator render of the face (lab/base_clean.png:
+# fenix847mm, Retro tube, glow and overlay off), and "As it ships" shows lab/base_current.png.
+#
+# Run:  python build_terminal_editor.py                 ->  claude-terminal-editor.html (next to this file)
+#       python build_terminal_editor.py --artifact OUT  ->  the same page without the document wrapper,
+#                                                            for publishing as a claude.ai Artifact
+import base64
 import os
+import re
+import sys
 
-OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "claude-terminal-editor.html")
+HERE = os.path.dirname(os.path.abspath(__file__))
+OUT = os.path.join(HERE, "claude-terminal-editor.html")
+
+
+def data_uri(name):
+    with open(os.path.join(HERE, "lab", name), "rb") as f:
+        return "data:image/png;base64," + base64.b64encode(f.read()).decode("ascii")
 
 # Same grouping as the Claude Grid editor. Every face has fixed-width digits (a terminal must be
 # monospace); the dot-matrix group was checked 2026-09-25 (loads + ten equal digit widths).
@@ -37,7 +55,7 @@ font_groups_js = "[" + ",".join('["%s",[%s]]' % (g, ",".join('"%s"' % f for f in
 
 HTML = r"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Claude Terminal - editor</title>
+<title>Claude Terminal Editor</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link id="gf-Share-Tech-Mono" href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
@@ -64,6 +82,7 @@ HTML = r"""<!doctype html>
   button{background:#D97757;color:#111;border:0;border-radius:8px;padding:8px 14px;font-family:inherit;font-weight:bold;cursor:pointer;margin:6px 8px 0 0;} button.sec{background:#333;color:#ddd;}
   textarea{width:100%;height:150px;background:#0c0c0c;border:1px solid #333;border-radius:8px;padding:10px;font-family:ui-monospace,monospace;font-size:11.5px;color:#bfe7d8;}
   .muted{color:#666;font-size:11.5px;} .chk{display:flex;gap:7px;align-items:center;}
+  canvas.zoom{border-radius:8px;box-shadow:none;cursor:default;image-rendering:pixelated;margin-top:24px;width:454px;max-width:100%;height:auto;background:#000;}
 </style></head>
 <body>
   <div>
@@ -72,6 +91,9 @@ HTML = r"""<!doctype html>
       the <b>arrow keys</b> (Shift = 10 px); <b>Tab</b> / <b>Shift+Tab</b> selects the next / previous.
       Pick a <b>theme</b> or set <b>hex</b> colours, then <b>Copy</b> the block back to me.</p>
     <div class="dial"><canvas id="c" width="454" height="454"></canvas><i class="tk t"></i><i class="tk r"></i><i class="tk b"></i><i class="tk l"></i></div>
+    <canvas id="zoom" class="zoom" width="453" height="150" aria-label="The seconds, magnified 3 times"></canvas>
+    <p class="hint">3&times; magnified: the seconds, pixel for pixel (judge scanlines here).</p>
+    <img id="baseClean" src="__BASE_CLEAN__" alt="" hidden><img id="baseShip" src="__BASE_SHIP__" alt="" hidden>
   </div>
   <div class="side">
     <div class="panel">
@@ -79,8 +101,24 @@ HTML = r"""<!doctype html>
       <div class="row chk"><input type="checkbox" id="snap" checked><label style="flex:0 0 auto">Snap to align (vertical + horizontal)</label></div>
       <div class="row chk"><input type="checkbox" id="secs"><label style="flex:0 0 auto">Show seconds (HH:MM:SS)</label></div>
       <div class="row chk"><input type="checkbox" id="vfd"><label style="flex:0 0 auto" title="glowing bitmap time + one mesh over the whole face">VFD style (glow time + full-face mesh)</label></div>
-      <div class="row chk"><input type="checkbox" id="scan"><label style="flex:0 0 auto" title="the watch's Scanlines setting: thin horizontal lines instead of the VFD mesh">Scanlines (old monitor)</label></div>
-      <div class="row chk"><input type="checkbox" id="lowp"><label style="flex:0 0 auto" title="what the watch shows in always-on: outline HH:MM, no grey tracks, mesh / scanlines kept">Low-power preview (always-on mode)</label></div>
+      <div class="row chk"><input type="checkbox" id="scan"><label style="flex:0 0 auto" title="the watch's Scanlines setting: thin horizontal lines instead of the VFD mesh">Scanlines (old monitor) - tune them below</label></div>
+      <div class="row chk"><input type="checkbox" id="lowp"><label style="flex:0 0 auto" title="what the watch shows in always-on: outline time with frozen seconds, no grey tracks, mesh / scanlines kept">Low-power preview (always-on mode)</label></div>
+    </div>
+    <div class="panel">
+      <h2>Scanlines</h2>
+      <div class="row"><label title="what the watch preview shows">Preview</label><select id="pvMode">
+        <option value="draw">Editor drawing</option><option value="true">True render (simulator)</option><option value="ship">As it ships (simulator)</option></select></div>
+      <div class="row"><label>Preset</label><select id="scPreset"></select></div>
+      <div class="row"><label title="pixels from one line to the next; smaller = more, finer lines">Spacing</label><input type="range" id="scPitch" min="2" max="8" step="1"><span class="val" id="scPitchV"></span></div>
+      <div class="row"><label title="dark rows in each repeat (at most spacing - 1)">Thickness</label><input type="range" id="scRows" min="1" max="7" step="1"><span class="val" id="scRowsV"></span></div>
+      <div class="row"><label title="how much the lines darken the lit text, bars and glow">On text</label><input type="range" id="scText" min="0" max="90" step="1"><span class="val" id="scTextV"></span></div>
+      <div class="row"><label title="how dark the lines are on the background; negative = lines lighter than the background">On background</label><input type="range" id="scBg" min="-60" max="90" step="1"><span class="val" id="scBgV"></span></div>
+      <div class="row"><label title="the background colour times this; lines on the background need some light to show">Bg brightness</label><input type="range" id="scBright" min="1" max="5" step="0.25"><span class="val" id="scBrightV"></span></div>
+      <div class="row"><label title="glow spilling around lit pixels (on the watch: the halo fonts and the time's glow)">Bleed</label><input type="range" id="scBleed" min="0" max="160" step="5"><span class="val" id="scBleedV"></span></div>
+      <div class="row"><label title="how far the glow spreads">Bleed radius</label><input type="range" id="scRad" min="1" max="8" step="1"><span class="val" id="scRadV"></span></div>
+      <div class="row chk"><input type="checkbox" id="scQuant" checked><label style="flex:0 0 auto" title="round every colour as the watch's 16-bit display does (R5 G6 B5)">Watch colours (16-bit)</label></div>
+      <div class="muted">Applies with VFD style + Scanlines on. <b>True render</b> runs these settings on a real simulator render of the face
+        (Retro tube, today's layout; layout editing pauses). <b>As it ships</b> is today's face as the simulator draws it.</div>
     </div>
     <div class="panel">
       <h2>Preview time &amp; date</h2>
@@ -160,6 +198,8 @@ const THEMES=[
 function defaults(){return {
   // Default = the face default: Retro tube + scanlines + tube glow (the editor design, 2026-09-25).
   font:"IBM Plex Mono", showSeconds:true, vfd:true, scanlines:true, tube:true, theme:"retro-tube",
+  // Scanlines as they ship: every 3rd row, 45% dark (tools/build_glow_time.py SCAN_PITCH / SCAN_DIM).
+  scan:{pitch:3, rows:1, text:45, bg:45, bright:1, bleed:60, radius:2},
   bg:"#020f06", accent:"#2bdc63", val:"#66ff8f", dim:"#1e9a48", track:"#0c3318", cap:"#11ff00", glow:"#2bff6a",
   el:{
     prompt:{name:"Prompt line", kind:"text", x:0.434, y:0.187, size:26, text:"fenix@tactix ~ $"},
@@ -212,10 +252,51 @@ function ciqStroke(s,x,top,align,color){ ctx.textAlign="left"; ctx.textBaseline=
 const _mesh=document.createElement("canvas"); _mesh.width=3; _mesh.height=3;
 { const m=_mesh.getContext("2d"), d=m.createImageData(3,3); for(let yy=0;yy<3;yy++) for(let xx=0;xx<3;xx++){ const o=(yy*3+xx)*4; d.data[o+3]=(xx==2||yy==2)?77:0; } m.putImageData(d,0,0); }
 function meshOverlay(){ ctx.fillStyle=ctx.createPattern(_mesh,"repeat"); ctx.fillRect(0,0,SZ,SZ); }
-// CRT scanlines (the watch's scan_tile): every third screen row darkened 45%, rows only.
-const _scan=document.createElement("canvas"); _scan.width=1; _scan.height=3;
-{ const m=_scan.getContext("2d"), d=m.createImageData(1,3); d.data[2*4+3]=115; m.putImageData(d,0,0); }
-function scanOverlay(){ ctx.fillStyle=ctx.createPattern(_scan,"repeat"); ctx.fillRect(0,0,SZ,SZ); }
+// ---- CRT scanlines: the watch's drawing order, as one pass over the drawn face ------------------------
+// 1. background: the theme background x "bg brightness"; in the line rows its own colour, so the
+//    background's lines can differ from the text's (on the watch: a background stripe tile, drawn first);
+// 2. bleed: a blur of the lit pixels added back (on the watch: the halo fonts + the time's glow);
+// 3. the text, bars and icons as drawn;
+// 4. the line overlay: every line row darkened by "on text" (the watch's scan tile at that alpha);
+// 5. optionally rounded to the watch's 16-bit colours.
+// Lit vs background is told apart by the drawn pixels' distance from the background colour.
+const SC_PRESETS=[
+  ["today","Today (as it ships)",{pitch:3,rows:1,text:45,bg:45,bright:1,bleed:60,radius:2}],
+  ["strong","A - Stronger",{pitch:3,rows:1,text:65,bg:65,bright:1.5,bleed:70,radius:2}],
+  ["pip","B - Pip-Boy",{pitch:4,rows:2,text:55,bg:55,bright:3,bleed:90,radius:3}],
+  ["fine","C - Fine and dense",{pitch:2,rows:1,text:45,bg:50,bright:2,bleed:70,radius:2}],
+  ["heavy","D - Heavy CRT",{pitch:5,rows:2,text:70,bg:80,bright:2.5,bleed:120,radius:4}],
+  ["soft","E - Soft text, lit background",{pitch:3,rows:1,text:30,bg:75,bright:3,bleed:80,radius:3}],
+  ["invert","F - Light background lines",{pitch:4,rows:2,text:50,bg:-40,bright:2.5,bleed:80,radius:3}],
+];
+const SC_KEYS=["pitch","rows","text","bg","bright","bleed","radius"];
+function boxBlur(src,w,h,r){ const a=Float32Array.from(src), b=new Float32Array(src.length), n=2*r+1;
+  const cx=v=>v<0?0:(v>=w?w-1:v), cy=v=>v<0?0:(v>=h?h-1:v);
+  for(let pass=0;pass<3;pass++){
+    for(let y=0;y<h;y++){ const row=y*w; let acc=0; for(let k=-r;k<=r;k++) acc+=a[row+cx(k)];
+      for(let x=0;x<w;x++){ b[row+x]=acc/n; acc+=a[row+cx(x+r+1)]-a[row+cx(x-r)]; } }
+    for(let x=0;x<w;x++){ let acc=0; for(let k=-r;k<=r;k++) acc+=b[cy(k)*w+x];
+      for(let y=0;y<h;y++){ a[y*w+x]=acc/n; acc+=b[cy(y+r+1)*w+x]-b[cy(y-r)*w+x]; } } }
+  return a; }
+function q565(v,bits){ const m=(1<<bits)-1; return Math.round(Math.max(0,Math.min(255,v))*m/255)*255/m; }
+function scanPipeline(src,bg,p,quant){ const n=SZ*SZ, rows=Math.min(p.rows,p.pitch-1), t=p.text/100, bl=p.bg/100;
+  const k=(1-bl)/Math.max(0.05,1-t), bgc=[bg[0]*p.bright,bg[1]*p.bright,bg[2]*p.bright];
+  const out=[new Float32Array(n),new Float32Array(n),new Float32Array(n)], lit=[new Float32Array(n),new Float32Array(n),new Float32Array(n)];
+  for(let y=0;y<SZ;y++){ const dark=(y%p.pitch)>=p.pitch-rows;
+    for(let x=0;x<SZ;x++){ const i=y*SZ+x, o=i*4;
+      const m=Math.min(1,Math.max(Math.abs(src[o]-bg[0]),Math.abs(src[o+1]-bg[1]),Math.abs(src[o+2]-bg[2]))/40);
+      for(let c=0;c<3;c++){ const b=dark?Math.min(255,bgc[c]*k):bgc[c]; out[c][i]=b*(1-m)+src[o+c]*m; lit[c][i]=src[o+c]*m; } } }
+  if(p.bleed>0){ for(let c=0;c<3;c++){ const g=boxBlur(lit[c],SZ,SZ,p.radius), s=p.bleed/100; for(let i=0;i<n;i++) out[c][i]+=g[i]*s; } }
+  const img=new ImageData(SZ,SZ);
+  for(let y=0;y<SZ;y++){ const f=((y%p.pitch)>=p.pitch-rows)?(1-t):1;
+    for(let x=0;x<SZ;x++){ const i=y*SZ+x, o=i*4; let r=out[0][i]*f, g=out[1][i]*f, b=out[2][i]*f;
+      if(quant){ r=q565(r,5); g=q565(g,6); b=q565(b,5); } img.data[o]=r; img.data[o+1]=g; img.data[o+2]=b; img.data[o+3]=255; } }
+  return img; }
+// Run the pipeline over what is on the canvas. Always-on has no glow and a black background.
+function scanFx(bg){ const p=Object.assign({},P.scan); if(lowPower){ p.bright=1; p.bleed=0; }
+  ctx.putImageData(scanPipeline(ctx.getImageData(0,0,SZ,SZ).data,bg,p,document.getElementById("scQuant").checked),0,0); }
+function quantizeCanvas(){ const im=ctx.getImageData(0,0,SZ,SZ), d=im.data;
+  for(let o=0;o<d.length;o+=4){ d[o]=q565(d[o],5); d[o+1]=q565(d[o+1],6); d[o+2]=q565(d[o+2],5); } ctx.putImageData(im,0,0); }
 // Weather icon stand-in (the watch uses Claude Grid's Tabler icons): a partly-cloudy sun, 24 px.
 function wxIcon(x,top,color){ ctx.save(); ctx.strokeStyle=color; ctx.lineWidth=2;
   ctx.beginPath(); ctx.arc(x+15,top+10,5,0,Math.PI*2); ctx.stroke();
@@ -229,7 +310,7 @@ function drawEl(k){ const e=P.el[k];
     // (the face does the same), so only the seconds disappear.
     if(lowPower){ const full=t, fw=Math.round(ctx.measureText(full).width), left=Math.round(x)-Math.floor(fw/2);
       ciqStroke(t,left,y,"left",P.val); boxes[k]=[left-4,y-4,left+fw+4,y+e.size+4]; return; }
-    if(P.vfd){ const g=hexRgb(P.glow); ctx.save(); ctx.shadowBlur=16; ctx.shadowColor="rgba("+g.join(",")+",0.9)"; ciqText(t,x,y,"center"); ctx.restore(); }
+    if(P.vfd&&!P.scanlines){ const g=hexRgb(P.glow); ctx.save(); ctx.shadowBlur=16; ctx.shadowColor="rgba("+g.join(",")+",0.9)"; ciqText(t,x,y,"center"); ctx.restore(); }  // with scanlines: the bleed
     const w=ciqText(t,x,y,"center"); boxes[k]=[x-w/2-4,y-4,x+w/2+4,y+e.size+4]; return; }
   if(e.kind=="date"){ const x=e.x*SZ, y=e.y*SZ, t=dateStr(); ctx.fillStyle=P.dim; ctx.font=fnt(e.size); const w=ciqText(t,x,y,"center");
     boxes[k]=[x-w/2-4,y-4,x+w/2+4,y+e.size+4]; return; }
@@ -263,24 +344,39 @@ function drawEl(k){ const e=P.el[k];
     boxes[k]=[x0-4,y0-4,x0+total+4,y0+bh+4]; return; }
 }
 
+function pvMode(){ return document.getElementById("pvMode").value; }
 function draw(){ lowPower=document.getElementById("lowp").checked; P.vfd=document.getElementById("vfd").checked; P.scanlines=document.getElementById("scan").checked;
-  ctx.fillStyle=lowPower?"#000000":P.bg; ctx.fillRect(0,0,SZ,SZ); boxes={};   // always-on is black whatever the theme
-  // Retro tube: everything lit glows (the face's halo fonts + halo rects); kept after colour edits.
-  const tube=P.tube&&!lowPower; if(tube){ const g=hexRgb(P.glow); ctx.save(); ctx.shadowBlur=7; ctx.shadowColor="rgba("+g.join(",")+",0.7)"; }
-  ["wx","prompt","time","date","rows","batt","cursor"].forEach(drawEl);
-  if(tube) ctx.restore();
-  if(P.vfd){ if(P.scanlines) scanOverlay(); else meshOverlay(); }   // also in always-on, as on the watch
+  boxes={}; const mode=pvMode(), scanOn=P.vfd&&P.scanlines;
+  if(mode=="ship"){ ctx.drawImage(document.getElementById("baseShip"),0,0); }
+  else if(mode=="true"){ ctx.drawImage(document.getElementById("baseClean"),0,0); scanFx([0,12,0]); }   // 020F06 as the watch shows it
+  else {
+    ctx.fillStyle=lowPower?"#000000":P.bg; ctx.fillRect(0,0,SZ,SZ);   // always-on is black whatever the theme
+    // Retro tube: everything lit glows (the face's halo fonts + halo rects); kept after colour edits.
+    // With scanlines on, the glow is the pipeline's bleed instead.
+    const tube=P.tube&&!lowPower&&!scanOn; if(tube){ const g=hexRgb(P.glow); ctx.save(); ctx.shadowBlur=7; ctx.shadowColor="rgba("+g.join(",")+",0.7)"; }
+    ["wx","prompt","time","date","rows","batt","cursor"].forEach(drawEl);
+    if(tube) ctx.restore();
+    if(scanOn) scanFx(hexRgb(lowPower?"#000000":P.bg));                   // also in always-on, as on the watch
+    else { if(P.vfd) meshOverlay(); if(document.getElementById("scQuant").checked) quantizeCanvas(); }
+  }
+  drawZoom();
+  if(mode!="draw"){ refresh(); return; }
   if(sel&&boxes[sel]){ const b=boxes[sel]; ctx.strokeStyle="#D97757"; ctx.lineWidth=1; ctx.setLineDash([4,3]); ctx.strokeRect(b[0],b[1],b[2]-b[0],b[3]-b[1]); ctx.setLineDash([]); }
   if(guide){ ctx.strokeStyle="#39d98a"; ctx.lineWidth=1; ctx.setLineDash([3,3]);
     if(guide.x!=null){ ctx.beginPath(); ctx.moveTo(guide.x,0); ctx.lineTo(guide.x,SZ); ctx.stroke(); }
     if(guide.y!=null){ ctx.beginPath(); ctx.moveTo(0,guide.y); ctx.lineTo(SZ,guide.y); ctx.stroke(); } ctx.setLineDash([]); }
   refresh();
 }
+// 3x view of the seconds (the right end of the time), before any selection frame is drawn.
+function drawZoom(){ const z=document.getElementById("zoom").getContext("2d"), e=P.el.time;
+  const sx=Math.round(e.x*SZ)+18, sy=Math.round(e.y*SZ)+8;
+  z.imageSmoothingEnabled=false; z.fillStyle="#000"; z.fillRect(0,0,453,150); z.drawImage(cv,sx,sy,151,50,0,0,453,150); }
 function hit(mx,my){ let best=null,bd=1e9; for(const k in boxes){ const b=boxes[k], ix=Math.max(b[0],Math.min(mx,b[2])), iy=Math.max(b[1],Math.min(my,b[3])); const d=(mx-ix)**2+(my-iy)**2; if(d<bd){bd=d;best=k;} } return bd<44*44?best:null; }
 function snapAxis(val,others){ let best=val,g=null,bd=0.014; const t=[0.5].concat(others); for(const o of t){ if(Math.abs(val-o)<bd){ bd=Math.abs(val-o); best=o; g=o*SZ; } } return [best,g]; }
 
 let drag=null; const cv=document.getElementById("c");
-cv.addEventListener("pointerdown",ev=>{ if(document.activeElement&&document.activeElement!==document.body) document.activeElement.blur(); // arrows -> watch
+cv.addEventListener("pointerdown",ev=>{ if(pvMode()!="draw") return;   // the simulator renders are fixed pictures
+  if(document.activeElement&&document.activeElement!==document.body) document.activeElement.blur(); // arrows -> watch
   const r=cv.getBoundingClientRect(), mx=(ev.clientX-r.left)*SZ/r.width, my=(ev.clientY-r.top)*SZ/r.height; const k=hit(mx,my);
   if(k){ sel=k; drag=k; cv.setPointerCapture(ev.pointerId); cv.style.cursor="grabbing"; syncPanel(); draw(); } else deselect(); });
 // Clicking away from the watch - its empty areas (above), or anywhere on the page outside the
@@ -371,6 +467,21 @@ document.getElementById("vfd").onchange=draw;
 document.getElementById("lowp").onchange=draw;
 document.getElementById("scan").onchange=draw;
 
+// Scanline controls
+const SC_IDS={pitch:"scPitch",rows:"scRows",text:"scText",bg:"scBg",bright:"scBright",bleed:"scBleed",radius:"scRad"};
+function scFmt(k,v){ if(k=="pitch"||k=="radius") return v+"px"; if(k=="rows") return v+(v==1?" row":" rows"); if(k=="bright") return (+v).toFixed(2).replace(/0$/,"")+"x"; return v+"%"; }
+function syncScan(){ document.getElementById("scRows").max=String(P.scan.pitch-1);
+  SC_KEYS.forEach(k=>{ document.getElementById(SC_IDS[k]).value=P.scan[k]; document.getElementById(SC_IDS[k]+"V").textContent=scFmt(k,P.scan[k]); });
+  const m=SC_PRESETS.find(pr=>SC_KEYS.every(k=>pr[2][k]===P.scan[k])); document.getElementById("scPreset").value=m?m[0]:"custom"; }
+const scPreset=document.getElementById("scPreset");
+SC_PRESETS.concat([["custom","Custom",null]]).forEach(([k,l])=>{ const o=document.createElement("option"); o.value=k; o.textContent=l; scPreset.appendChild(o); });
+scPreset.onchange=function(){ const pr=SC_PRESETS.find(x=>x[0]==this.value); if(!pr) return; P.scan=Object.assign({},pr[2]);
+  if(pvMode()=="draw"){ document.getElementById("vfd").checked=true; document.getElementById("scan").checked=true; } syncScan(); draw(); };
+SC_KEYS.forEach(k=>{ document.getElementById(SC_IDS[k]).oninput=function(){ P.scan[k]=+this.value;
+  if(P.scan.rows>P.scan.pitch-1) P.scan.rows=P.scan.pitch-1; syncScan(); draw(); }; });
+document.getElementById("scQuant").onchange=draw;
+document.getElementById("pvMode").onchange=function(){ if(this.value!="draw"){ sel=null; syncPanel(); } draw(); };
+
 // Preview time & date sliders
 function syncPV(){ document.getElementById("pvD").max=daysIn(); if(PV.day>daysIn()) PV.day=daysIn();
   setR("pvH","pvHV",PV.h,0); document.getElementById("pvHV").textContent=HH()+(PV.h24?"":(PV.h<12?"a":"p"));
@@ -399,6 +510,8 @@ function linkAllColours(){ linkVal("cBg","cBgH",P.bg); linkVal("cAcc","cAccH",P.
 
 function refresh(){ const e=P.el; let L=[
   "font: "+P.font, "theme: "+P.theme, "style: "+(P.vfd?"VFD (glow time + full-face mesh)":"plain"), "showSeconds: "+P.showSeconds, "scanlines: "+P.scanlines, "tubeGlow: "+P.tube,
+  "scanline look: spacing "+P.scan.pitch+"px, thickness "+P.scan.rows+(P.scan.rows==1?" row":" rows")+", on text "+P.scan.text+"%, on background "+P.scan.bg
+    +"%, bg brightness "+(+P.scan.bright).toFixed(2).replace(/0$/,"")+"x, bleed "+P.scan.bleed+"% radius "+P.scan.radius+"px",
   "bg: "+P.bg+"  accent: "+P.accent+"  value: "+P.val+"  dim: "+P.dim+"  track: "+P.track+"  cap: "+P.cap+"  glow: "+P.glow, "",
   "prompt  x="+e.prompt.x.toFixed(3)+" y="+e.prompt.y.toFixed(3)+"  size="+e.prompt.size+"  text=\""+e.prompt.text+"\"",
   "time    x="+e.time.x.toFixed(3)+" y="+e.time.y.toFixed(3)+"  size="+e.time.size,
@@ -414,13 +527,26 @@ function refresh(){ const e=P.el; let L=[
 function copyOut(){ out.select(); document.execCommand("copy"); }
 function reset(){ P=defaults(); sel=null; guide=null; themeSel.value=P.theme; document.getElementById("vfd").checked=P.vfd;
   document.getElementById("scan").checked=P.scanlines;
-  document.getElementById("fontSel").value=P.font; document.getElementById("secs").checked=P.showSeconds; linkAllColours(); syncPanel(); setFont(P.font); }
+  document.getElementById("fontSel").value=P.font; document.getElementById("secs").checked=P.showSeconds; linkAllColours(); syncScan(); syncPanel(); setFont(P.font); }
 
 linkAllColours(); syncPV(); themeSel.value=P.theme;
 document.getElementById("vfd").checked=P.vfd; document.getElementById("secs").checked=P.showSeconds;
 document.getElementById("scan").checked=P.scanlines;
-document.getElementById("fontSel").value=P.font; syncPanel(); setFont(P.font); setTimeout(prefetchFonts,1500);
+document.getElementById("fontSel").value=P.font; syncScan(); syncPanel(); setFont(P.font); setTimeout(prefetchFonts,1500);
+// The simulator renders are embedded images: redraw once they have decoded.
+["baseClean","baseShip"].forEach(id=>{ const im=document.getElementById(id); if(!im.complete) im.addEventListener("load",draw); });
 </script></body></html>"""
-HTML = HTML.replace("__FONT_GROUPS__", font_groups_js)
-open(OUT, "w", encoding="utf-8").write(HTML)
-print("wrote", OUT, os.path.getsize(OUT), "bytes")
+HTML = (HTML.replace("__FONT_GROUPS__", font_groups_js)
+            .replace("__BASE_CLEAN__", data_uri("base_clean.png"))
+            .replace("__BASE_SHIP__", data_uri("base_current.png")))
+target = OUT
+if len(sys.argv) == 3 and sys.argv[1] == "--artifact":
+    # The Artifact publisher adds the doctype / html / head / body: keep the head's title, links and
+    # style, then the body's content.
+    head = re.search(r"<head>(.*?)</head>", HTML, re.S).group(1)
+    head = re.sub(r"<meta[^>]*>", "", head).strip()
+    body = re.search(r"<body>(.*)</body>", HTML, re.S).group(1)
+    HTML, target = head + "\n" + body, sys.argv[2]
+with open(target, "w", encoding="utf-8", newline="\n") as f:
+    f.write(HTML)
+print("wrote", target, os.path.getsize(target), "bytes")
