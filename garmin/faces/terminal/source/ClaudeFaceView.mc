@@ -14,7 +14,7 @@ import Toybox.WatchUi;
 //! Layout comes straight from the HTML layout editor: a prompt line, the big time, the date, then
 //! three CLI-style rows (5H / 1W / model) each with a bar, percentage and reset time, a segmented
 //! battery bar, and a blinking cursor. Night Owl colours on black, in IBM Plex Mono. In always-on
-//! the time drops to a thin outline HH:MM and the grey tracks go; the mesh / scanlines stay (see _lowPower).
+//! the time becomes a thin outline, its seconds frozen, and the grey tracks go; the mesh / scanlines stay (see _lowPower).
 //!
 //! The values come from the published complications. We can't construct a custom complication's Id
 //! directly (its identity is an internal UUID), so onShow ENUMERATES the available complications,
@@ -108,6 +108,11 @@ class ClaudeFaceView extends WatchUi.WatchFace {
     // track (meter bar backgrounds, unlit battery segments), draws the meter bars' filled part as
     // a 2 px hollow outline, and keeps the text and the lit battery segments.
     private var _lowPower as Boolean = false;
+    // The clock when the watch went to sleep: always-on keeps showing that second until the minute
+    // turns, then :00 (onUpdate runs once a minute there, so a live second would be wrong anyway).
+    private var _sleepHour as Number = -1;
+    private var _sleepMin as Number = -1;
+    private var _sleepSec as Number = 0;
 
     public function initialize() {
         WatchFace.initialize();
@@ -420,8 +425,13 @@ class ClaudeFaceView extends WatchUi.WatchFace {
         drawMeshOverlay(dc, w, h, 0, 0, w, h);
     }
 
-    //! Always-on on: repaint once in the low-power style (see _lowPower).
+    //! Always-on on: repaint once in the low-power style (see _lowPower), with the seconds frozen at
+    //! the second the watch went to sleep.
     public function onEnterSleep() as Void {
+        var clock = System.getClockTime();
+        _sleepHour = clock.hour;
+        _sleepMin = clock.min;
+        _sleepSec = clock.sec;
         _lowPower = true;
         WatchUi.requestUpdate();
     }
@@ -441,7 +451,7 @@ class ClaudeFaceView extends WatchUi.WatchFace {
     //! every pixel in the band is then painted from black exactly once, as in a full update (text
     //! drawn over its own anti-aliased edges without a blank would darken them each second).
     public function onPartialUpdate(dc as Dc) as Void {
-        // No seconds in always-on (the outline time is HH:MM), so nothing to tick.
+        // Always-on freezes the seconds (see drawTime), so nothing to tick.
         if (!_showSeconds || _lowPower) {
             return;
         }
@@ -495,17 +505,23 @@ class ClaudeFaceView extends WatchUi.WatchFace {
         var t = hour.format("%02d") + ":" + clock.min.format("%02d");
         var ty = px(h * TIME_Y);
         if (_lowPower) {
-            // Always-on: HH:MM in the hollow outline font, never the glow bitmaps (a lit bloom
-            // would blow the AMOLED burn-in budget). HH:MM must not MOVE on entering sleep -
-            // only the seconds disappear - so it keeps the left edge the high-power time has:
-            // centred on the width of the whole HH:MM:SS (both paths centre on that, see
-            // GlowTime.draw / text()). The outline font shares the solid font's line metrics
-            // and advance (monospace), so each digit lands exactly on its solid twin.
+            // Always-on: the time in the hollow outline font, never the glow bitmaps (a lit bloom
+            // would blow the AMOLED burn-in budget). It must not MOVE on entering sleep, so it
+            // keeps the left edge the high-power time has: centred on the width of the whole
+            // HH:MM:SS (both paths centre on that, see GlowTime.draw / text()). The outline font
+            // shares the solid font's line metrics and advance (monospace), so each digit lands
+            // exactly on its solid twin. The seconds stay but stop: the second the watch went to
+            // sleep, then :00 once the minute turns (always-on repaints once a minute).
             var solid = timeFont();
             var full = _showSeconds ? t + ":00" : t;   // same width as any HH:MM:SS (monospace)
             var left = px(w * TIME_X) - dc.getTextWidthInPixels(full, solid) / 2;
+            var shown = t;
+            if (_showSeconds) {
+                var sec = (clock.hour == _sleepHour && clock.min == _sleepMin) ? _sleepSec : 0;
+                shown = t + ":" + sec.format("%02d");
+            }
             ink(dc, VALUE);
-            dc.drawText(left, ty, (_fontTimeO != null) ? _fontTimeO : solid, t,
+            dc.drawText(left, ty, (_fontTimeO != null) ? _fontTimeO : solid, shown,
                 Graphics.TEXT_JUSTIFY_LEFT);
             return;
         }

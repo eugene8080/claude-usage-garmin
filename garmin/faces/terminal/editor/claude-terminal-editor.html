@@ -150,7 +150,7 @@ function pad2(v){ return (v<10?"0":"")+v; }
 function daysIn(){ return new Date(PV.year,PV.mon,0).getDate(); }
 function previewDate(){ return new Date(PV.year,PV.mon-1,PV.day,PV.h,PV.m,PV.s); }
 function HH(){ let h=PV.h; if(!PV.h24){ h=h%12; if(h==0) h=12; } return pad2(h); }
-function timeStr(){ return HH()+":"+pad2(PV.m)+(P.showSeconds&&!lowPower?":"+pad2(PV.s):""); }  // always-on: HH:MM
+function timeStr(){ return HH()+":"+pad2(PV.m)+(P.showSeconds?":"+pad2(PV.s):""); }  // always-on: seconds frozen
 function dateStr(){ const d=previewDate(); return DAYS[d.getDay()]+" "+MONTHS[PV.mon-1]+" "+PV.day; }
 
 function fnt(px){return px+"px '"+P.font+"',monospace";}
@@ -190,7 +190,7 @@ function drawEl(k){ const e=P.el[k];
   if(e.kind=="time"){ const x=e.x*SZ, y=e.y*SZ, t=timeStr(); ctx.fillStyle=P.val; ctx.font=fnt(e.size);
     // Always-on: HH:MM stays where it sits in high power - left edge of the centred HH:MM:SS
     // (the face does the same), so only the seconds disappear.
-    if(lowPower){ const full=P.showSeconds?t+":00":t, fw=Math.round(ctx.measureText(full).width), left=Math.round(x)-Math.floor(fw/2);
+    if(lowPower){ const full=t, fw=Math.round(ctx.measureText(full).width), left=Math.round(x)-Math.floor(fw/2);
       ciqStroke(t,left,y,"left",P.val); boxes[k]=[left-4,y-4,left+fw+4,y+e.size+4]; return; }
     if(P.vfd){ const g=hexRgb(P.glow); ctx.save(); ctx.shadowBlur=16; ctx.shadowColor="rgba("+g.join(",")+",0.9)"; ciqText(t,x,y,"center"); ctx.restore(); }
     const w=ciqText(t,x,y,"center"); boxes[k]=[x-w/2-4,y-4,x+w/2+4,y+e.size+4]; return; }

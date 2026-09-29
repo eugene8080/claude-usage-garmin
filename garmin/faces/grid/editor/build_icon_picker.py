@@ -278,8 +278,10 @@ def build_rows(g: Garmin):
     add("fields", "Wind speed", "Arrow for the way the air moves (one of eight), then direction and speed: "
         "SW 19 KM/H · shown here for a SW wind",
         [("ours", "Ours", "", uri_img(tabler(0xea24)))], "ours")
-    add("fields", "Chance of rain", "Tabler umbrella · no Garmin icon in the article",
-        [("ours", "Ours", "", uri_img(tabler(0xebf1)))], "ours")
+    rain, _adv = solid_icons.rain_chance(2, TTF, SIZE)    # two drops: 38-62%
+    add("fields", "Chance of rain", "An umbrella with more drops the likelier the rain: none, one, two, three "
+        "(shown with two) · no Garmin icon in the article",
+        [("ours", "Ours", "", uri_img(to_uri(rain)))], "ours")
     return rows
 
 

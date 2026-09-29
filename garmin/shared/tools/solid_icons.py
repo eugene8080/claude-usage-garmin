@@ -127,3 +127,62 @@ def humidity(step: int, ttf: str, size: int, ss: int = 4):
     out = np.maximum(cov, water.astype(np.float64))
     img = Image.fromarray(np.round(np.clip(out, 0, 1) * 255).astype(np.uint8), "L")
     return img.resize((w // ss, h // ss), Image.BOX), adv
+
+
+# ---- chance of rain: an umbrella with 0-3 drops falling on it -----------------------------------
+# A solid umbrella, a little smaller than the glyph so there is room above it, with more drops the
+# likelier the rain: none, one, two, three. The umbrella keeps the same size and place at every
+# step, so only the drops change. Filed at RAIN_BASE + step; ClaudeGridView.rainGlyph maps the
+# percentage (quarter steps: 0-12% none, 13-37% one, 38-62% two, 63%+ three).
+UMBRELLA = 0xebf1
+RAIN_BASE = 0xE020
+RAIN_STEPS = 3
+
+
+def _filled(cp: int, ttf: str, px: int) -> np.ndarray:
+    """Glyph `cp` at `px` px, flood-filled solid, cropped to its ink (float coverage)."""
+    font = ImageFont.truetype(ttf, px)
+    im = Image.new("L", (px * 2, px * 2), 0)
+    ImageDraw.Draw(im).text((0, 0), chr(cp), font=font, fill=255)
+    cov = np.asarray(im).astype(np.float64) / 255.0
+    body = np.maximum(cov, binary_fill_holes(cov > 0.4).astype(np.float64))
+    ys, xs = np.nonzero(body > 0.02)
+    return body[ys.min(): ys.max() + 1, xs.min(): xs.max() + 1]
+
+
+def _paste(canvas: np.ndarray, part: np.ndarray, left: float, top: float) -> None:
+    x, y = int(round(left)), int(round(top))
+    h, w = part.shape
+    region = canvas[y: y + h, x: x + w]
+    np.maximum(region, part[: region.shape[0], : region.shape[1]], out=region)
+
+
+def rain_chance(step: int, ttf: str, size: int, ss: int = 4):
+    """The umbrella with `step` drops (0..RAIN_STEPS): (coverage image "L", xadvance)."""
+    if not 0 <= step <= RAIN_STEPS:
+        raise ValueError("rain step %d outside 0..%d" % (step, RAIN_STEPS))
+    base = ImageFont.truetype(ttf, size)
+    asc, desc = base.getmetrics()
+    adv = int(round(base.getlength(chr(UMBRELLA))))
+    margin = 4
+    w, h = (adv + margin) * ss, (asc + desc + margin) * ss
+    # The full-size glyph's ink box: the composed icon fills the same box.
+    im = Image.new("L", (w, h), 0)
+    ImageDraw.Draw(im).text((0, 0), chr(UMBRELLA), font=ImageFont.truetype(ttf, size * ss), fill=255)
+    ys, xs = np.nonzero(np.asarray(im) > 10)
+    x0, y0, x1, y1 = xs.min(), ys.min(), xs.max() + 1, ys.max() + 1
+    canvas = np.zeros((h, w), dtype=np.float64)
+    umb = _filled(UMBRELLA, ttf, int(round(size * ss * 0.74)))
+    umb_left = (x0 + x1) / 2.0 - umb.shape[1] / 2.0
+    umb_top = y1 - umb.shape[0]
+    _paste(canvas, umb, umb_left, umb_top)
+    if step:
+        gap = 1.2 * ss                                  # ~1 px of air between drops and canopy
+        drop_h = max(2, int(round(umb_top - gap - y0)))
+        drop = _filled(0xea97, ttf, int(round(drop_h * 1.25)))    # droplet ink is ~80% of its px
+        spots = {1: [0.5], 2: [0.30, 0.70], 3: [0.16, 0.5, 0.84]}[step]
+        for f in spots:
+            cx = umb_left + f * umb.shape[1]
+            _paste(canvas, drop, cx - drop.shape[1] / 2.0, umb_top - gap - drop.shape[0])
+    img = Image.fromarray(np.round(np.clip(canvas, 0, 1) * 255).astype(np.uint8), "L")
+    return img.resize((w // ss, h // ss), Image.BOX), adv
