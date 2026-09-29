@@ -4,7 +4,6 @@ import Toybox.Complications;
 import Toybox.Graphics;
 import Toybox.Lang;
 import Toybox.Math;
-import Toybox.Position;
 import Toybox.System;
 import Toybox.Time;
 import Toybox.Time.Gregorian;
@@ -1137,9 +1136,10 @@ class ClaudeGridView extends WatchUi.WatchFace {
     //! [icon, value, feels] for current weather, from WeatherNow (garmin/shared/source-weather):
     //! the live temperature and the feels-like temperature (wind chill / heat index), both
     //! converted to the watch's unit, and an icon for the actual condition, sun or moon variant by
-    //! whether it's currently between sunrise and sunset at that location. `feels` is "" when not
-    //! reported. Once the observation is stale (phone away) the reading is the stored forecast for
-    //! the current hour: its temperature is marked "~31°" and it has no feels-like.
+    //! whether it's currently between the watch's sunrise and sunset (WeatherNow.isNight).
+    //! `feels` is "" when not reported. Once the observation is stale (phone away) the reading is
+    //! the stored forecast for the current hour: its temperature is marked "~31°" and it has no
+    //! feels-like.
     private function currentWeather() as Array<String> {
         try {
             var r = WeatherNow.get();
@@ -1154,7 +1154,7 @@ class ClaudeGridView extends WatchUi.WatchFace {
             }
             var icon = "";
             if (r.condition != null) {
-                icon = weatherGlyph(r.condition as Number, isNight(r.location)).toChar().toString();
+                icon = weatherGlyph(r.condition as Number, WeatherNow.isNight()).toChar().toString();
             }
             return [icon, val, feels];
         } catch (ex) {
@@ -1175,17 +1175,6 @@ class ClaudeGridView extends WatchUi.WatchFace {
             tv = tv * 9.0 / 5.0 + 32.0;
         }
         return Math.round(tv).toNumber().format("%d") + "°";
-    }
-
-    //! True between local sunset and the next sunrise at the observation location. Unknown
-    //! location or sun times -> daytime (the sun icons are the safer default).
-    private function isNight(loc as Position.Location or Null) as Boolean {
-        if (loc == null) { return false; }
-        var now = Time.now();
-        var rise = Weather.getSunrise(loc, now);
-        var set = Weather.getSunset(loc, now);
-        if (rise == null || set == null) { return false; }
-        return now.lessThan(rise) || now.greaterThan(set);
     }
 
     private function valStr(v as Complications.Value or Null) as String {

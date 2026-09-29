@@ -164,7 +164,7 @@ is why the watch app must be installed (and opened once) for the faces to show C
   panel ([garmin/faces/terminal/editor](garmin/faces/terminal/editor/README.md)).
 - A segmented **battery bar** under the meters — Claude Grid's top battery arc, straightened (turns
   red at 20%).
-- **Weather** at the top, like Rad Lad: the current condition icon (solid, Garmin-style; sun / moon by time of day),
+- **Weather** at the top, like Rad Lad: the current condition icon (solid, Garmin-style; sun / moon by the watch's sunrise and sunset),
   the temperature and the feels-like temperature (`32° FL40°`), in the watch's units. With the
   phone away it switches to the stored hourly forecast, marked `~32°`, as Claude Grid does.
 - **Hold a meter row** to open Claude Usage; hold the weather line, the date or the battery bar
