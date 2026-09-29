@@ -16,8 +16,9 @@ import Toybox.Time.Gregorian;
 //!   1  latest_1min_temperature.csv   the station's temperature          -> t  (tt = reading time)
 //!   2  latest_1min_humidity.csv      its (or the nearest) humidity      -> h  (ht)
 //!   3  latest_10min_wind.csv         its (or the nearest) mean wind     -> ws km/h, wd deg, wg (wt)
-//!   4  rhrread (JSON, hourly)        HKO's weather icon                 -> i  (it); and the
-//!                                    temperature again if request 1 failed (hourly, by name)
+//!   4  rhrread (JSON, hourly)        HKO's weather icon                 -> i  (it); and, if
+//!                                    request 1 failed, the temperature (hourly, by name), and
+//!                                    if request 2 failed, the humidity (the Observatory's)
 //!   5  warnsum (JSON)                warnings in force                  -> w  (codes), wf (fetch time)
 //!
 //! A failed request just leaves its keys out: Hko.merge keeps the previous values, each with its
@@ -26,6 +27,13 @@ import Toybox.Time.Gregorian;
 //!
 //! The CSVs are read as text: they are ~1 KB each ("YYYYMMDDhhmm,Station,value[,value...]" per
 //! line, HKT timestamps, no BOM, "\n" line ends), and only the one line wanted is copied out.
+//!
+//! On a real watch the CSV requests are expected to fail. HTTP_RESPONSE_CONTENT_TYPE_TEXT_PLAIN
+//! requires a "text/plain" Content-Type (SDK docs), and HKO serves the CSVs with two headers,
+//! "application/octet-stream" and "text/csv". The simulator makes its own HTTP requests without
+//! that check, so there all five work. The first tactix 8 install (2026-09-29) showed the HKO
+//! temperature and warning but no feels-like, i.e. no HKO humidity. Hence the rhrread fallbacks in
+//! request 4: on the watch, temperature and humidity come from HKO's hourly report.
 (:background)
 class HkoService extends System.ServiceDelegate {
 
@@ -181,6 +189,24 @@ class HkoService extends System.ServiceDelegate {
                                 }
                                 break;
                             }
+                        }
+                    }
+                }
+            }
+            // The humidity, if request 2 failed. rhrread reports it for the Observatory only, as one
+            // hourly figure. That still gives the face a heat index, and it stays within HKO (Hko.mc
+            // never mixes Garmin's humidity into the feels-like).
+            if (_out["h"] == null) {
+                var hum = d["humidity"];
+                if (hum instanceof Dictionary) {
+                    var hrows = (hum as Dictionary)["data"];
+                    var hwhen = isoEpoch((hum as Dictionary)["recordTime"]);
+                    if (hrows instanceof Array && (hrows as Array).size() > 0 && hwhen != null
+                            && (hrows as Array)[0] instanceof Dictionary) {
+                        var hv = ((hrows as Array)[0] as Dictionary)["value"];
+                        if (hv instanceof Number && (hv as Number) >= 0 && (hv as Number) <= 100) {
+                            _out["h"] = hv as Number;
+                            _out["ht"] = hwhen;
                         }
                     }
                 }
