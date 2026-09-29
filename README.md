@@ -89,7 +89,9 @@ Three Connect IQ projects, all under [`garmin/`](garmin/), put the same usage nu
 | [`garmin/faces/terminal/`](garmin/faces/terminal/README.md) | **Claude Terminal** — a CLI-styled face: a prompt line, the time, the date, the three Claude meters as terminal rows with bars, percentages and reset times, and a battery bar. |
 
 Two more folders sit beside them: [`garmin/shared/`](garmin/shared/README.md) holds what the
-projects share instead of copying (launcher icons, the VFD mesh tile, the font generator), and
+projects share instead of copying (launcher icons, the VFD mesh tile, the font generator, the
+weather code), [`garmin/hko-proxy/`](garmin/hko-proxy/README.md) is the Cloudflare Worker that
+serves the faces the Hong Kong Observatory's minute readings, and
 [`garmin/CONTRACT.md`](garmin/CONTRACT.md) pins down every value the phone, the watch app and the
 faces must agree on — checked in CI by `garmin/tools/check_contract.py`.
 
@@ -152,7 +154,9 @@ is why the watch app must be installed (and opened once) for the faces to show C
   humidity and wind fields show that station's **minute-by-minute readings** — temperature,
   humidity, and the 10-minute wind from the nearest anemometer — with HKO's own weather icon and a
   feels-like computed from them (`31° FL40°`). The face fetches them every 10 minutes through the
-  phone (no API key). An **HKO warning in force replaces the brand line**, coloured by severity:
+  phone, via a small Cloudflare Worker ([`garmin/hko-proxy/`](garmin/hko-proxy/README.md): a
+  watch can't read HKO's minute feeds directly); if that's down it falls back to HKO's hourly
+  report. No API key. An **HKO warning in force replaces the brand line**, coloured by severity:
   `VERY HOT`, `T8 NE`, `BLACK RAIN +1`. Chance of rain stays Garmin's (HKO has no hourly one), and
   when HKO's readings go stale (phone away, abroad) the face falls back to Garmin's weather.
 - **Data 08** shows a **second time zone** until you pick a complication for it, labelled with

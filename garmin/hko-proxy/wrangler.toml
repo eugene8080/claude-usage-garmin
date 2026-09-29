@@ -1,0 +1,6 @@
+# hko-proxy: HKO open data -> one JSON response per station, for the watch faces' HKO weather.
+# Deploy: `npx wrangler@4 deploy` from this folder (after `npx wrangler@4 login`). See README.md.
+name = "hko-proxy"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+workers_dev = true

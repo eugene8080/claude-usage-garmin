@@ -18,9 +18,10 @@ import Toybox.WatchUi;
 //! (phone away, or out of Hong Kong with no data coming).
 //!
 //! What HKO supplies, and how old each part may be before it is ignored:
-//!   temperature, humidity, wind   the station's minute readings           READING_MAX_AGE (75 min)
-//!                                 (on a watch the minute CSVs fail, so the temperature and
-//!                                 humidity come from the hourly report; see HkoService)
+//!   temperature, humidity, wind   the station's minute readings, via the   READING_MAX_AGE (75 min)
+//!                                 hko-proxy Worker (a watch can't read HKO's CSVs itself; if the
+//!                                 proxy fails, the hourly report's temperature and the
+//!                                 Observatory's humidity, and Garmin's wind - see HkoService)
 //!   condition icon                the hourly report's icon                ICON_MAX_AGE (3 h)
 //!   warnings                      the warnings in force                   WARN_MAX_AGE (2 h)
 //! The chance of rain has no HKO equivalent (HKO forecasts it per day, in words), so it stays
@@ -273,8 +274,10 @@ module Hko {
         return "";
     }
 
-    //! The settings row's sub-label: the station, and how the last fetch went - the time of the
-    //! temperature reading on the face, or the failing response code (e.g. -104: no phone).
+    //! The settings row's sub-label: the station and how the last fetch went.
+    //!   "Hong Kong Park 17:40"             the minute reading, via the proxy
+    //!   "Hong Kong Park 17:00 hourly -104" the proxy failed (code), the hourly report stood in
+    //!   "Hong Kong Park err -104"          nothing came back (-104: no phone connection)
     function menuSub() as String {
         var name = stationName();
         var d = current();
@@ -282,15 +285,18 @@ module Hko {
             return name;
         }
         var e1 = d["e1"];
-        if (e1 instanceof Number && d["t"] == null) {
-            return name + " - err " + (e1 as Number).toString();
-        }
+        var err = (e1 instanceof Number) ? " " + (e1 as Number).toString() : "";
         var tt = d["tt"];
-        if (tt instanceof Number) {
-            var info = Gregorian.info(new Time.Moment(tt as Number), Time.FORMAT_SHORT);
-            return name + " - " + info.hour.format("%02d") + ":" + info.min.format("%02d");
+        if (!(tt instanceof Number)) {
+            return err.equals("") ? name : name + " err" + err;
         }
-        return name;
+        var info = Gregorian.info(new Time.Moment(tt as Number), Time.FORMAT_SHORT);
+        var s = name + " " + info.hour.format("%02d") + ":" + info.min.format("%02d");
+        var tm = d["tm"];
+        if (!(tm instanceof Number) || (tm as Number) != 1) {
+            s += " hourly";
+        }
+        return s + err;
     }
 }
 
