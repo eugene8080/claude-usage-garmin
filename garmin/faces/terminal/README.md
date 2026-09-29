@@ -3,8 +3,9 @@
 A terminal/CLI-styled watch face for fenix 8 class watches (incl. tactix 8), modelled on the
 "Agentic Pro" look. Shows a prompt line, the time, the date, and the three Claude usage meters
 (5H / 1W / model) as CLI rows with bars, percentages, and reset times, plus a segmented battery
-bar (the straight counterpart of Claude Grid's battery arc), in IBM Plex Mono - by default in the
-Retro tube theme with scanlines (Night Owl is the alternative), with a glowing VFD time. In always-on (low power) the time becomes a 2 px outline HH:MM
+bar (the straight counterpart of Claude Grid's battery arc), in the Doto dot-matrix font - by default
+in the Retro tube theme with scanlines over a lit green background (Night Owl is the alternative),
+with a glowing VFD time. In always-on (low power) the time drops its glow (plain Doto dots), its seconds frozen
 (`stm_time_o`, from `tools/build_fonts_terminal.py`), the seconds and grey tracks go and the VFD mesh
 (or scanlines) stays, much as
 on Claude Grid.
@@ -80,7 +81,9 @@ and the watch-app opened once so its 5-minute background publish is registered.
 
 ## Fonts
 
-IBM Plex Mono Regular (OFL, `resources/fonts/OFL.txt`), at the editor's sizes: prompt 26 px
+Doto (dot matrix, OFL, `tools/Doto-OFL.txt`; variable font, square dots at Regular: axes
+`[ROND, wght] = [0, 400]`), chosen in the layout editor on 2026-09-29 - IBM Plex Mono Regular before
+it (`garmin/shared/tools/`). At the editor's sizes: prompt 26 px
 (`STMono`), date + rows 25 px (`STMonoSmall`), time 70 px (`STMonoTime`). The `stm_*` file names
 are the face's generic font slots, kept from the earlier Share Tech Mono build. To change the
 typeface or a size, edit `TTF` / `FACE` / `WEIGHT` and the `generate(...)` calls in

@@ -192,15 +192,18 @@ const THEMES=[
  ["night-owl","Night Owl",{bg:"#000000",accent:"#82aaff",val:"#d6deeb",dim:"#7f9c9c",track:"#333333",cap:"#ef5350",glow:"#82aaff"}],
  // Green-phosphor CRT (the watch's "Retro tube" theme - keep in step with ClaudeFaceView.applyTheme
  // and build_glow_time.THEMES). Near-black green background; 80%+ in the brightest green (a mono tube has no red).
- ["retro-tube","Retro tube (green phosphor)",{bg:"#020f06",accent:"#2bdc63",val:"#66ff8f",dim:"#1e9a48",track:"#0c3318",cap:"#11ff00",glow:"#2bff6a"}],
+ // 2026-09-29: 80%+ in a muted red (was the brightest green, #11ff00). The background stays #020f06 here:
+ // the Scanlines panel's "bg brightness" (1.75x as shipped) scales it, as the watch's BG does.
+ ["retro-tube","Retro tube (green phosphor)",{bg:"#020f06",accent:"#2bdc63",val:"#66ff8f",dim:"#1e9a48",track:"#0c3318",cap:"#bf616a",glow:"#2bff6a"}],
 ];
 
 function defaults(){return {
   // Default = the face default: Retro tube + scanlines + tube glow (the editor design, 2026-09-25).
-  font:"IBM Plex Mono", showSeconds:true, vfd:true, scanlines:true, tube:true, theme:"retro-tube",
-  // Scanlines as they ship: every 3rd row, 45% dark (tools/build_glow_time.py SCAN_PITCH / SCAN_DIM).
-  scan:{pitch:3, rows:1, text:45, bg:45, bright:1, bleed:60, radius:2},
-  bg:"#020f06", accent:"#2bdc63", val:"#66ff8f", dim:"#1e9a48", track:"#0c3318", cap:"#11ff00", glow:"#2bff6a",
+  // Doto + the scanline look chosen here on 2026-09-29 (built into the face: tools/build_fonts_terminal.py,
+  // build_glow_time.py SCAN_DIM, ClaudeFaceView BG / BG_LINE / GLOW_MIX).
+  font:"Doto", showSeconds:true, vfd:true, scanlines:true, tube:true, theme:"retro-tube",
+  scan:{pitch:3, rows:1, text:38, bg:60, bright:1.75, bleed:145, radius:5},
+  bg:"#020f06", accent:"#2bdc63", val:"#66ff8f", dim:"#1e9a48", track:"#0c3318", cap:"#bf616a", glow:"#2bff6a",
   el:{
     prompt:{name:"Prompt line", kind:"text", x:0.434, y:0.187, size:26, text:"fenix@tactix ~ $"},
     time:  {name:"Time",        kind:"time", x:0.500, y:0.234, size:70},
@@ -261,7 +264,8 @@ function meshOverlay(){ ctx.fillStyle=ctx.createPattern(_mesh,"repeat"); ctx.fil
 // 5. optionally rounded to the watch's 16-bit colours.
 // Lit vs background is told apart by the drawn pixels' distance from the background colour.
 const SC_PRESETS=[
-  ["today","Today (as it ships)",{pitch:3,rows:1,text:45,bg:45,bright:1,bleed:60,radius:2}],
+  ["today","Today (as it ships)",{pitch:3,rows:1,text:38,bg:60,bright:1.75,bleed:145,radius:5}],
+  ["before","Before (to 28 Sep)",{pitch:3,rows:1,text:45,bg:45,bright:1,bleed:60,radius:2}],
   ["strong","A - Stronger",{pitch:3,rows:1,text:65,bg:65,bright:1.5,bleed:70,radius:2}],
   ["pip","B - Pip-Boy",{pitch:4,rows:2,text:55,bg:55,bright:3,bleed:90,radius:3}],
   ["fine","C - Fine and dense",{pitch:2,rows:1,text:45,bg:50,bright:2,bleed:70,radius:2}],
@@ -309,7 +313,7 @@ function drawEl(k){ const e=P.el[k];
     // Always-on: HH:MM stays where it sits in high power - left edge of the centred HH:MM:SS
     // (the face does the same), so only the seconds disappear.
     if(lowPower){ const full=t, fw=Math.round(ctx.measureText(full).width), left=Math.round(x)-Math.floor(fw/2);
-      ciqStroke(t,left,y,"left",P.val); boxes[k]=[left-4,y-4,left+fw+4,y+e.size+4]; return; }
+      ciqText(t,left,y,"left"); boxes[k]=[left-4,y-4,left+fw+4,y+e.size+4]; return; }   // plain font, as the face (AOD_OUTLINE off for Doto)
     if(P.vfd&&!P.scanlines){ const g=hexRgb(P.glow); ctx.save(); ctx.shadowBlur=16; ctx.shadowColor="rgba("+g.join(",")+",0.9)"; ciqText(t,x,y,"center"); ctx.restore(); }  // with scanlines: the bleed
     const w=ciqText(t,x,y,"center"); boxes[k]=[x-w/2-4,y-4,x+w/2+4,y+e.size+4]; return; }
   if(e.kind=="date"){ const x=e.x*SZ, y=e.y*SZ, t=dateStr(); ctx.fillStyle=P.dim; ctx.font=fnt(e.size); const w=ciqText(t,x,y,"center");

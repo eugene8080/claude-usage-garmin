@@ -46,7 +46,7 @@ def outline_coverage(ttf, size, weight, ch, width_px):
     big = ImageFont.truetype(ttf, size * ss)
     if weight is not None:
         try:
-            big.set_variation_by_axes([weight])
+            big.set_variation_by_axes(list(weight) if isinstance(weight, (list, tuple)) else [weight])
         except Exception:
             pass
     x0, y0, x1, y1 = big.getbbox(ch)
@@ -71,7 +71,8 @@ def generate(ttf, out_base, size, chars, atlas_w=256, face_name="Chakra Petch",
              weight=None, stroke=0, emit_ids=None, extra=None):
     """Rasterise `chars` from `ttf` at `size` into a BMFont atlas.
 
-    weight: for a variable font, the wght axis value (e.g. 500). Ignored for static TTFs.
+    weight: for a variable font, the wght axis value (e.g. 500), or a list of values for every
+            axis in the font's fvar order (e.g. Doto: [ROND, wght] = [0, 400]). Ignored for static TTFs.
     stroke: if > 0, draw hollow OUTLINE glyphs (px stroke, transparent interior) instead of
             solid fills - used for the always-on time. The glyph region is expanded by the
             stroke so the outline is never clipped, and xoffset/yoffset shift back by the same
@@ -100,7 +101,7 @@ def generate(ttf, out_base, size, chars, atlas_w=256, face_name="Chakra Petch",
     font = ImageFont.truetype(ttf, size)
     if weight is not None:
         try:
-            font.set_variation_by_axes([weight])
+            font.set_variation_by_axes(list(weight) if isinstance(weight, (list, tuple)) else [weight])
         except Exception as ex:
             print("  (weight axis unavailable: %s)" % ex)
     ascent, descent = font.getmetrics()

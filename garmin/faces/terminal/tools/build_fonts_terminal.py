@@ -24,9 +24,13 @@ SHARED_TOOLS = os.path.join(HERE, "..", "..", "..", "shared", "tools")
 # Claude Grid's generated fonts, source of the weather icon atlas (see copy_icon_font).
 GRID_FONTS = os.path.join(HERE, "..", "..", "grid", "resources", "fonts")
 # --- the face's typeface ---------------------------------------------------------------------
-TTF = os.path.join(SHARED_TOOLS, "IBMPlexMono-Regular.ttf")   # OFL - resources/fonts/OFL.txt
-FACE = "IBM Plex Mono"
-WEIGHT = None       # static font; set a number (e.g. 400) for a variable TTF's weight axis
+# Doto (dot matrix, OFL - tools/Doto-OFL.txt), chosen in the layout editor on 2026-09-29. Variable
+# font with two axes in fvar order [ROND, wght]: square dots (ROND 0) at Regular (wght 400), the
+# weight Google Fonts serves by default and so the one the editor previewed. Before it: IBM Plex
+# Mono Regular (garmin/shared/tools/IBMPlexMono-Regular.ttf, WEIGHT = None).
+TTF = os.path.join(HERE, "Doto-Variable.ttf")
+FACE = "Doto"
+WEIGHT = [0, 400]   # every axis of a variable TTF in fvar order, a single wght number, or None
 
 TIME_CHARS = "0123456789:"
 # Printable ASCII + the degree sign for the weather temperature ("17°") - without it the
@@ -44,7 +48,7 @@ def generate(out_base: str, size: int, chars: str, atlas_w: int = 256) -> None:
     """
     font = ImageFont.truetype(TTF, size)
     if WEIGHT is not None:
-        font.set_variation_by_axes([WEIGHT])
+        font.set_variation_by_axes(list(WEIGHT) if isinstance(WEIGHT, (list, tuple)) else [WEIGHT])
     ascent, descent = font.getmetrics()
     line_h = ascent + descent
     adv = int(round(font.getlength("0")))
@@ -109,9 +113,11 @@ def generate_outline(out_base: str, size: int, chars: str, stroke: int = 2,
         raise SystemExit("!!! %s is blank - a blank atlas silently kills all text" % out_base)
 
 
-GLOW_PAD = 8        # px of halo room around every glyph
-GLOW_SIGMA = 2.8    # gaussian blur radius of the halo
-GLOW_GAIN = 2.4     # coverage multiplier before clipping: the core reaches full coverage
+# Bleed chosen in the layout editor's Scanlines panel, 2026-09-29: 145 % at radius 5 px (a 3-pass
+# box blur of radius 5 is close to a gaussian of sigma 5.5). Was sigma 2.8, pad 8, gain 2.4.
+GLOW_PAD = 15       # px of halo room around every glyph (~2.7 sigma)
+GLOW_SIGMA = 5.5    # gaussian blur radius of the halo
+GLOW_GAIN = 3.2     # coverage multiplier before clipping: the core reaches full coverage
 GLOW_PEAK = 1.0     # CIQ renders font coverage in only 4 levels (measured in the simulator:
                     # 0 / 1/3 / 2/3 / 1), so a faint halo collapses into one flat band. A
                     # full-strength halo quantises into three evenly spaced glow steps instead;
