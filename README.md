@@ -147,6 +147,14 @@ is why the watch app must be installed (and opened once) for the faces to show C
   forecast never passes for a measurement. It lasts as long as that forecast runs (12 hours in
   the simulator); after that the fields go blank rather than show a reading hours old. Garmin's
   own high/low complication is not affected.
+- **Hong Kong Observatory weather.** With an HKO station picked (*HKO weather station* in the face
+  settings; default **Hong Kong Park**, *Off* for Garmin weather only), the weather slot and the
+  humidity and wind fields show that station's **minute-by-minute readings** — temperature,
+  humidity, and the 10-minute wind from the nearest anemometer — with HKO's own weather icon and a
+  feels-like computed from them (`31° FL40°`). The face fetches them every 10 minutes through the
+  phone (no API key). An **HKO warning in force replaces the brand line**, coloured by severity:
+  `VERY HOT`, `T8 NE`, `BLACK RAIN +1`. Chance of rain stays Garmin's (HKO has no hourly one), and
+  when HKO's readings go stale (phone away, abroad) the face falls back to Garmin's weather.
 - **Data 08** shows a **second time zone** until you pick a complication for it, labelled with
   the city's code (NY, CHI, LA, LDN, PAR, ZUR, DUB, MUM, SG, HK, SHG, TOK, SYD, AUC or UTC); the
   city (daylight saving automatic) is a face setting on the watch or in Garmin Connect.
@@ -167,6 +175,9 @@ is why the watch app must be installed (and opened once) for the faces to show C
 - **Weather** at the top, like Rad Lad: the current condition icon (solid, Garmin-style; sun / moon by the watch's sunrise and sunset),
   the temperature and the feels-like temperature (`32° FL40°`), in the watch's units. With the
   phone away it switches to the stored hourly forecast, marked `~32°`, as Claude Grid does.
+- **Hong Kong Observatory weather**, as on Claude Grid: the weather line reads the picked HKO
+  station (default Hong Kong Park), and an HKO warning in force takes over the prompt line as a
+  shell alert (`! VERY HOT`, `! T8 NE`), red for the serious ones.
 - **Hold a meter row** to open Claude Usage; hold the weather line, the date or the battery bar
   to open the watch's weather, calendar or battery screen (Garmin's hold-to-launch).
 - Settings — **on the watch** (hold the face → Settings) and in Garmin Connect for a store

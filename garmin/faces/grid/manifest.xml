@@ -27,6 +27,11 @@
 
         <iq:permissions>
             <iq:uses-permission id="ComplicationSubscriber"/>
+            <!-- HKO weather (garmin/shared/source-weather/HkoService.mc): a background service that
+                 fetches the Hong Kong Observatory's station readings every 10 minutes, through the
+                 phone like every Connect IQ web request. -->
+            <iq:uses-permission id="Background"/>
+            <iq:uses-permission id="Communications"/>
         </iq:permissions>
 
         <iq:languages>

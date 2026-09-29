@@ -3,8 +3,9 @@ import Toybox.Lang;
 import Toybox.WatchUi;
 
 //! On-watch settings for Claude Grid (returned from ClaudeGridApp.getSettingsView): the Data 08
-//! time-zone city, its "always the clock" switch, Data 07's "always seconds" switch, and the
-//! per-slot face-computed fields (humidity, wind, chance of rain, battery in days). Writes the
+//! time-zone city, its "always the clock" switch, Data 07's "always seconds" switch, the
+//! per-slot face-computed fields (humidity, wind, chance of rain, battery in days), and the HKO
+//! weather station. Writes the
 //! same Application.Properties the Garmin Connect settings (resources/settings/settings.xml)
 //! write, so either route works.
 class ClaudeGridSettingsMenu extends WatchUi.Menu2 {
@@ -17,6 +18,8 @@ class ClaudeGridSettingsMenu extends WatchUi.Menu2 {
         addItem(new WatchUi.ToggleMenuItem(Rez.Strings.secAlwaysTitle, Rez.Strings.secAlwaysSub,
             :secAlways, GridSettings.readSecondsAlways(), null));
         addItem(new WatchUi.MenuItem(Rez.Strings.fieldsTitle, Rez.Strings.fieldsSub, :fields, null));
+        // HKO weather: the station, and when its last reading came in (garmin/shared/source-weather).
+        addItem(new WatchUi.MenuItem(Rez.Strings.hkoStationTitle, Hko.menuSub(), :hko, null));
     }
 }
 
@@ -105,6 +108,8 @@ class ClaudeGridSettingsDelegate extends WatchUi.Menu2InputDelegate {
         } else if (id == :fields) {
             var slots = new ClaudeGridFieldsMenu();
             WatchUi.pushView(slots, new ClaudeGridFieldsDelegate(slots), WatchUi.SLIDE_LEFT);
+        } else if (id == :hko) {
+            WatchUi.pushView(new HkoStationMenu(), new HkoStationDelegate(_menu, :hko), WatchUi.SLIDE_LEFT);
         }
     }
 }

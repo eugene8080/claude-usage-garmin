@@ -1,5 +1,6 @@
 import Toybox.Application;
 import Toybox.Lang;
+import Toybox.System;
 import Toybox.WatchUi;
 
 //! "Claude Grid" - an Iron Grit-style data face in Chakra Petch with eight user-editable
@@ -8,6 +9,11 @@ import Toybox.WatchUi;
 //! Garmin's native on-device watch face editor. The view always comes with a WatchFaceDelegate:
 //! in the editor it maps taps to slots so the editor can preview them, and on the live face it
 //! handles touch-and-hold on a slot (hold-to-launch the complication's app).
+//!
+//! (:background) because the HKO weather service (garmin/shared/source-weather/HkoService.mc)
+//! runs in this app's background process, which starts from this class; the view and everything
+//! else stay out of the background's memory.
+(:background)
 class ClaudeGridApp extends Application.AppBase {
 
     //! Whether the app was launched by the native watch face settings editor.
@@ -30,6 +36,7 @@ class ClaudeGridApp extends Application.AppBase {
     }
 
     public function getInitialView() as [Views] or [Views, InputDelegates] {
+        Hko.schedule();   // the 10-minute HKO fetch, on or off per the HkoStation setting
         var view = new $.ClaudeGridView(_editMode);
         _view = view;
         return [view, new $.ClaudeGridDelegate(view, _editMode)];
@@ -44,8 +51,20 @@ class ClaudeGridApp extends Application.AppBase {
         return [menu, new $.ClaudeGridSettingsDelegate(menu)];
     }
 
+    //! The HKO weather service (background process).
+    public function getServiceDelegate() as [System.ServiceDelegate] {
+        return [new HkoService()];
+    }
+
+    //! A background HKO fetch finished: store its readings and redraw with them.
+    public function onBackgroundData(data as Application.PersistableType) as Void {
+        Hko.merge(data);
+        WatchUi.requestUpdate();
+    }
+
     //! Garmin Connect (phone) settings were saved - re-read them and redraw.
     public function onSettingsChanged() as Void {
+        Hko.schedule();   // the HKO station may have been switched on or off
         if (_view != null) {
             (_view as ClaudeGridView).readSettings();
         }

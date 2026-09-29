@@ -10,7 +10,9 @@ A project pulls them in through its `monkey.jungle` by relative path — nothing
 | `resources-round-454x454/` | Launcher icon, 454 px family (fēnix 8 47 mm / tactix 8, fēnix 8 Pro 47 mm) | watch app, Claude Grid, Claude Terminal |
 | `resources-round-416x416/` | Launcher icon, 416 px family (fēnix 8 43 mm) | watch app, Claude Grid, Claude Terminal |
 | `resources-mesh/` | `MeshTile` — the full-face VFD mesh overlay | Claude Grid, Claude Terminal |
-| `source-weather/` | `WeatherNow` — the weather reading the faces show, falling back to the stored hourly forecast (marked "~") once the phone has been away long enough for the observation to go stale; `WeatherNow.isNight()` picks the sun or moon icon from the watch's own sunrise / sunset complications (no Positioning permission needed) | Claude Grid, Claude Terminal |
+| `source-weather/` | `WeatherNow` — the weather reading the faces show, falling back to the stored hourly forecast (marked "~") once the phone has been away long enough for the observation to go stale; `WeatherNow.isNight()` picks the sun or moon icon from the watch's own sunrise / sunset complications (no Positioning permission needed); `HkoService` / `Hko` — the Hong Kong Observatory background fetch (station readings, icon, warnings) that `WeatherNow` reads first; `HkoStations` / `HkoNames` — the generated station table | Claude Grid, Claude Terminal |
+| `resources-hko/` | HKO station names and the `HkoStation` property + setting (generated) | Claude Grid, Claude Terminal |
+| `tools/hko_stations.py` | Generator for the HKO station table and `resources-hko/` (nearest humidity / wind station per temperature station; permanent station ids) | — |
 | `tools/genfont.py` | TTF → Connect IQ bitmap font (`.fnt` + atlas) generator | both faces' `tools/build_fonts*.py` |
 | `tools/mesh_tile.py` | Generator for `resources-mesh/` | both faces' glow generators |
 | `tools/IBMPlexMono-Regular.ttf` | The faces' typeface (OFL — `tools/IBMPlexMono-OFL.txt`) | both faces' font builders |

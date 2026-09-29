@@ -38,6 +38,10 @@ class ClaudeGridView extends WatchUi.WatchFace {
     private const HOUR_COL = 0xFFFFFF;            // hour digits (solid)
     private const _DEFAULT_ACCENT = 0xFEDE5D;    // today's weekday + seconds value
     private const _DEFAULT_DATA = 0x36F9F6;      // chip values (Text 1)
+    // An HKO warning in force replaces the brand line (drawBrand), coloured by its severity.
+    private const ALERT_RED = 0xFF4D6D;           // typhoon 8+, red / black rain, tsunami, landslip
+    private const ALERT_AMBER = 0xFFA94D;         // T3, amber rain, thunderstorm, very hot...
+    private const ALERT_YELLOW = 0xFEDE5D;        // T1, frost, yellow fire (= the default accent)
 
     private const TIME_GAP = 59;                 // HH / MM digit centres each this far from TIME_Y
     private const TIME_Y = 0.477;                // time block centre (fraction of height), = editor
@@ -794,9 +798,26 @@ class ClaudeGridView extends WatchUi.WatchFace {
         dc.clearClip();
     }
 
+    //! The brand line - or, while a Hong Kong Observatory warning is in force (Hko.alert, with an
+    //! HKO station set), the most serious one: "VERY HOT", "T8 NE", "BLACK RAIN +1" ("+1": one more
+    //! warning in force), red / amber / yellow by severity. A label too wide for the line between
+    //! the indicator icons steps down to the chip and then the small font.
     private function drawBrand(dc as Dc, cx as Numeric, y as Numeric) as Void {
-        dc.setColor(TEXT3, Graphics.COLOR_TRANSPARENT);
         var f = (_fBig != null) ? _fBig : Graphics.FONT_TINY;
+        var a = Hko.alert();
+        if (a != null) {
+            var s = Hko.alertText(a);
+            var sev = a[1] as Number;
+            dc.setColor(sev >= 2 ? ALERT_RED : (sev == 1 ? ALERT_AMBER : ALERT_YELLOW),
+                Graphics.COLOR_TRANSPARENT);
+            var maxW = (dc.getWidth() * 0.56).toNumber();
+            if (dc.getTextWidthInPixels(s, f) > maxW && _fMed != null) { f = _fMed as Graphics.FontType; }
+            if (dc.getTextWidthInPixels(s, f) > maxW && _fSmall != null) { f = _fSmall as Graphics.FontType; }
+            GridDraw.text(dc, cx, y, f, s,
+                Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+            return;
+        }
+        dc.setColor(TEXT3, Graphics.COLOR_TRANSPARENT);
         GridDraw.text(dc, cx, y, f, "TACTIX",
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
     }
