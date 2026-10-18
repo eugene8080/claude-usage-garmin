@@ -1,0 +1,14 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+
+    <!--
+      A plain mouse-pointer arrow: a generic mark for Cursor, not the company's trademarked
+      logo, tinted with @color/accent_cursor like the widget's bars.
+    -->
+    <path
+        android:fillColor="@color/accent_cursor"
+        android:pathData="M12,4 L12,38 L20.5,30 L26.5,44 L32.5,41.5 L26.5,28 L38,28 Z" />
+</vector>

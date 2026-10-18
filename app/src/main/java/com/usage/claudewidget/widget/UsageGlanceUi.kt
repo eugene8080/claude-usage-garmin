@@ -32,26 +32,41 @@ import androidx.glance.unit.ColorProvider
 import androidx.glance.LocalContext
 import android.content.Intent
 import com.usage.claudewidget.R
+import com.usage.claudewidget.data.Provider
 import com.usage.claudewidget.ui.MainActivity
+
+/** One meter as drawn: label, rounded %, and the formatted reset time. */
+data class MeterState(
+    /** Full label for the stacked layout, e.g. "5H", "1W Fable", "Plan". */
+    val label: String,
+    /** The side-by-side and narrow layouts drop a window prefix: "1W Fable" -> "Fable". */
+    val shortLabel: String,
+    val pct: Int,
+    val resets: String,
+)
+
+/** A message shown in place of the meters (not paired, provider not set up in Orca...). */
+data class Notice(
+    val text: String,
+    /** For a widget too narrow for [text]. */
+    val compactText: String,
+    /** Tapping opens the app (to pair) instead of refreshing. */
+    val opensApp: Boolean,
+)
 
 /** Immutable view state handed to the composable; assembled from Storage on each render. */
 data class WidgetState(
-    val needsLogin: Boolean,
-    val hasData: Boolean,
-    val fiveHourPct: Int,
-    val fiveHourResets: String,
-    val sevenDayPct: Int,
-    val sevenDayResets: String,
-    /** False when the endpoint reports no per-model weekly cap; the row is then hidden. */
-    val hasModelWeekly: Boolean,
-    /** The model that window is scoped to, as the endpoint names it (e.g. "Fable"). */
-    val modelWeeklyName: String,
-    val modelWeeklyPct: Int,
-    val modelWeeklyResets: String,
+    val provider: Provider,
+    /** Shown instead of the meters when set. */
+    val notice: Notice?,
+    /** Up to three; empty (with no notice) means "waiting for the first fetch". */
+    val meters: List<MeterState>,
     val stale: Boolean,
     /** App version (release tag), shown so an update can be confirmed at a glance. */
     val version: String,
-)
+) {
+    val hasData: Boolean get() = meters.isNotEmpty()
+}
 
 private val COMPACT_MAX_WIDTH = 130.dp
 /**
@@ -63,7 +78,7 @@ private val SHORT_MAX_HEIGHT = 70.dp
 /** Below this height the stacked layout switches to its dense sizing (one-row widgets). */
 private val DENSE_MAX_HEIGHT = 130.dp
 /**
- * The stacked layout with its "Claude usage" header needs about this much height at its densest
+ * The stacked layout with its "<Provider> usage" header needs about this much height at its densest
  * (measured on the emulator: 77 dp of content + 12 dp padding). It keeps the header down to here.
  */
 private val DENSE_MARK_MIN_HEIGHT = 89.dp
@@ -72,8 +87,20 @@ private val COMPACT_MARK_MIN_HEIGHT = 100.dp
 private val RESET_PREFIX_MIN_WIDTH = 220.dp
 
 // Colors come from resources so they auto-adapt to light/dark via values-night.
-private val accent = ColorProvider(R.color.accent)
+private fun accentFor(provider: Provider) = ColorProvider(
+    when (provider) {
+        Provider.CLAUDE -> R.color.accent
+        Provider.CODEX -> R.color.accent_codex
+        Provider.CURSOR -> R.color.accent_cursor
+    },
+)
 private fun barTrack() = ColorProvider(R.color.bar_track)
+
+private fun markFor(provider: Provider) = when (provider) {
+    Provider.CLAUDE -> R.drawable.ic_claude
+    Provider.CODEX -> R.drawable.ic_codex
+    Provider.CURSOR -> R.drawable.ic_cursor
+}
 
 @Composable
 fun UsageWidgetContent(state: WidgetState) {
@@ -83,7 +110,7 @@ fun UsageWidgetContent(state: WidgetState) {
     val dense = size.height < DENSE_MAX_HEIGHT
     val context = LocalContext.current
 
-    val tap = if (state.needsLogin) {
+    val tap = if (state.notice?.opensApp == true) {
         actionStartActivity(Intent(context, MainActivity::class.java))
     } else {
         actionRunCallback<RefreshAction>()
@@ -98,7 +125,7 @@ fun UsageWidgetContent(state: WidgetState) {
             .clickable(tap),
     ) {
         when {
-            state.needsLogin -> SignInPrompt(compact)
+            state.notice != null -> NoticeView(state.provider, state.notice, compact)
             !state.hasData -> Loading(compact)
             short -> ShortLayout(state)
             compact -> CompactLayout(state, showMark = size.height >= COMPACT_MARK_MIN_HEIGHT)
@@ -159,10 +186,10 @@ private fun FullLayout(s: WidgetState, showMark: Boolean, showResetPrefix: Boole
                 modifier = GlanceModifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                ClaudeMark(d.markDp.dp)
+                ProviderMark(s.provider, d.markDp.dp)
                 Spacer(GlanceModifier.width(6.dp))
                 Text(
-                    "Claude usage",
+                    "${s.provider.displayName} usage",
                     style = TextStyle(
                         color = GlanceTheme.colors.onSurface,
                         fontWeight = FontWeight.Medium,
@@ -184,18 +211,15 @@ private fun FullLayout(s: WidgetState, showMark: Boolean, showResetPrefix: Boole
             }
             Spacer(GlanceModifier.height(d.headerGap.dp))
         }
-        MeterRow("5H", s.fiveHourPct, s.fiveHourResets, showResetPrefix, d)
-        Spacer(GlanceModifier.height(d.rowGap.dp))
-        MeterRow("1W", s.sevenDayPct, s.sevenDayResets, showResetPrefix, d)
-        if (s.hasModelWeekly) {
-            Spacer(GlanceModifier.height(d.rowGap.dp))
-            MeterRow("1W ${s.modelWeeklyName}", s.modelWeeklyPct, s.modelWeeklyResets, showResetPrefix, d)
+        s.meters.forEachIndexed { i, meter ->
+            if (i > 0) Spacer(GlanceModifier.height(d.rowGap.dp))
+            MeterRow(meter, accentFor(s.provider), showResetPrefix, d)
         }
     }
 }
 
 /**
- * Three meters across, for a widget one row tall. Label over value over bar keeps
+ * The meters across, for a widget one row tall. Label over value over bar keeps
  * each cell narrow enough that a long model name and "100%" never collide.
  */
 @Composable
@@ -204,26 +228,18 @@ private fun ShortLayout(s: WidgetState) {
         modifier = GlanceModifier.fillMaxSize(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ShortMeter("5H", s.fiveHourPct, s.fiveHourResets, GlanceModifier.defaultWeight())
-        Spacer(GlanceModifier.width(10.dp))
-        ShortMeter("1W", s.sevenDayPct, s.sevenDayResets, GlanceModifier.defaultWeight())
-        if (s.hasModelWeekly) {
-            Spacer(GlanceModifier.width(10.dp))
-            ShortMeter(
-                s.modelWeeklyName,
-                s.modelWeeklyPct,
-                s.modelWeeklyResets,
-                GlanceModifier.defaultWeight(),
-            )
+        s.meters.forEachIndexed { i, meter ->
+            if (i > 0) Spacer(GlanceModifier.width(10.dp))
+            ShortMeter(meter, accentFor(s.provider), GlanceModifier.defaultWeight())
         }
     }
 }
 
 @Composable
-private fun ShortMeter(label: String, pct: Int, resets: String, modifier: GlanceModifier) {
+private fun ShortMeter(meter: MeterState, accent: ColorProvider, modifier: GlanceModifier) {
     Column(modifier = modifier) {
         Text(
-            label,
+            meter.shortLabel,
             style = TextStyle(
                 color = GlanceTheme.colors.onSurfaceVariant,
                 fontWeight = FontWeight.Bold,
@@ -232,7 +248,7 @@ private fun ShortMeter(label: String, pct: Int, resets: String, modifier: Glance
             maxLines = 1,
         )
         Text(
-            "$pct%",
+            "${meter.pct}%",
             style = TextStyle(
                 color = GlanceTheme.colors.onSurface,
                 fontWeight = FontWeight.Bold,
@@ -243,24 +259,24 @@ private fun ShortMeter(label: String, pct: Int, resets: String, modifier: Glance
         // The reset time, dimmed so the percentage stays the thing the eye lands on. This is
         // the one-row analogue of the watch glance's reset line.
         Text(
-            resets,
+            meter.resets,
             style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 9.sp),
             maxLines = 1,
         )
         Spacer(GlanceModifier.height(2.dp))
-        Bar(pct, height = 4.dp)
+        Bar(meter.pct, accent, height = 4.dp)
     }
 }
 
 @Composable
-private fun MeterRow(label: String, pct: Int, resets: String, showResetPrefix: Boolean, d: StackDims) {
+private fun MeterRow(meter: MeterState, accent: ColorProvider, showResetPrefix: Boolean, d: StackDims) {
     Column(modifier = GlanceModifier.fillMaxWidth()) {
         Row(
             modifier = GlanceModifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                label,
+                meter.label,
                 style = TextStyle(
                     color = GlanceTheme.colors.onSurfaceVariant,
                     fontWeight = FontWeight.Bold,
@@ -271,7 +287,7 @@ private fun MeterRow(label: String, pct: Int, resets: String, showResetPrefix: B
                 modifier = GlanceModifier.width(d.labelW.dp),
             )
             Text(
-                "$pct%",
+                "${meter.pct}%",
                 style = TextStyle(
                     color = GlanceTheme.colors.onSurface,
                     fontWeight = FontWeight.Bold,
@@ -281,13 +297,13 @@ private fun MeterRow(label: String, pct: Int, resets: String, showResetPrefix: B
             )
             Spacer(GlanceModifier.defaultWeight())
             Text(
-                if (showResetPrefix) "resets $resets" else resets,
+                if (showResetPrefix) "resets ${meter.resets}" else meter.resets,
                 style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = d.resetSp.sp),
                 maxLines = 1,
             )
         }
         Spacer(GlanceModifier.height(d.barGap.dp))
-        Bar(pct, height = d.barDp.dp)
+        Bar(meter.pct, accent, height = d.barDp.dp)
     }
 }
 
@@ -295,25 +311,22 @@ private fun MeterRow(label: String, pct: Int, resets: String, showResetPrefix: B
 private fun CompactLayout(s: WidgetState, showMark: Boolean) {
     Column(modifier = GlanceModifier.fillMaxSize()) {
         if (showMark) {
-            ClaudeMark(14.dp)
+            ProviderMark(s.provider, 14.dp)
             Spacer(GlanceModifier.height(4.dp))
         }
-        CompactMeter("5H", s.fiveHourPct)
-        Spacer(GlanceModifier.height(4.dp))
-        CompactMeter("1W", s.sevenDayPct)
-        if (s.hasModelWeekly) {
-            Spacer(GlanceModifier.height(4.dp))
-            CompactMeter(s.modelWeeklyName, s.modelWeeklyPct)
+        s.meters.forEachIndexed { i, meter ->
+            if (i > 0) Spacer(GlanceModifier.height(4.dp))
+            CompactMeter(meter, accentFor(s.provider))
         }
     }
 }
 
 @Composable
-private fun CompactMeter(label: String, pct: Int) {
+private fun CompactMeter(meter: MeterState, accent: ColorProvider) {
     Column(modifier = GlanceModifier.fillMaxWidth()) {
         Row(modifier = GlanceModifier.fillMaxWidth()) {
             Text(
-                label,
+                meter.shortLabel,
                 style = TextStyle(
                     color = GlanceTheme.colors.onSurfaceVariant,
                     fontWeight = FontWeight.Bold,
@@ -323,7 +336,7 @@ private fun CompactMeter(label: String, pct: Int) {
             )
             Spacer(GlanceModifier.defaultWeight())
             Text(
-                "$pct%",
+                "${meter.pct}%",
                 style = TextStyle(
                     color = GlanceTheme.colors.onSurface,
                     fontWeight = FontWeight.Bold,
@@ -333,12 +346,12 @@ private fun CompactMeter(label: String, pct: Int) {
             )
         }
         Spacer(GlanceModifier.height(2.dp))
-        Bar(pct)
+        Bar(meter.pct, accent)
     }
 }
 
 @Composable
-private fun Bar(pct: Int, height: androidx.compose.ui.unit.Dp = 5.dp) {
+private fun Bar(pct: Int, accent: ColorProvider, height: androidx.compose.ui.unit.Dp = 5.dp) {
     LinearProgressIndicator(
         progress = (pct.coerceIn(0, 100)) / 100f,
         modifier = GlanceModifier.fillMaxWidth().height(height).cornerRadius(height / 2),
@@ -348,26 +361,28 @@ private fun Bar(pct: Int, height: androidx.compose.ui.unit.Dp = 5.dp) {
 }
 
 @Composable
-private fun ClaudeMark(s: androidx.compose.ui.unit.Dp) {
+private fun ProviderMark(provider: Provider, s: androidx.compose.ui.unit.Dp) {
     Image(
-        provider = ImageProvider(R.drawable.ic_claude),
-        contentDescription = "Claude",
+        provider = ImageProvider(markFor(provider)),
+        contentDescription = provider.displayName,
         modifier = GlanceModifier.size(s),
     )
 }
 
+/** The provider's mark over a short message: "Tap to pair with Orca", "Can't reach Orca"... */
 @Composable
-private fun SignInPrompt(compact: Boolean) {
+private fun NoticeView(provider: Provider, notice: Notice, compact: Boolean) {
     Column(
         modifier = GlanceModifier.fillMaxSize(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        ClaudeMark(if (compact) 18.dp else 24.dp)
+        ProviderMark(provider, if (compact) 18.dp else 24.dp)
         Spacer(GlanceModifier.height(6.dp))
         Text(
-            if (compact) "Sign in" else "Tap to sign in",
+            if (compact) notice.compactText else notice.text,
             style = TextStyle(color = GlanceTheme.colors.onSurface, fontWeight = FontWeight.Medium),
+            maxLines = 2,
         )
     }
 }

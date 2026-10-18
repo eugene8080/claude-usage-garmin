@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Desktop Orca's mobile server speaks plain ws:// on the LAN or the tailnet (port 6768), at
+  whatever IP address the pairing code names, so the hosts cannot be listed here and cleartext
+  has to be allowed for the app as a whole.
+
+  That is safe for this app because its only network traffic is that socket, and everything
+  on it after the opening hello is end-to-end encrypted and authenticated (NaCl box keys
+  derived per connection, pinned to the desktop key in the pairing code - see
+  orca/OrcaE2eeSession.kt). A tampered or spoofed connection fails the handshake; it cannot
+  read or forge usage data. Over Tailscale the link is additionally WireGuard-encrypted.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

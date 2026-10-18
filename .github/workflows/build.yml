@@ -115,6 +115,11 @@ jobs:
           sed -i -E "s/versionName = \"[^\"]*\"/versionName = \"${version}\"/" app/build.gradle.kts
           echo "Building ${version} (versionCode ${code})"
 
+      # JVM tests, including the Orca E2EE port pinned to vectors from Orca's own code
+      # (docs/orca-protocol.md). A failure here means the APK could not talk to Orca.
+      - name: Run the unit tests
+        run: ./gradlew --no-daemon :app:testDebugUnitTest
+
       - name: Build the debug APK
         run: ./gradlew --no-daemon :app:assembleDebug
 
@@ -170,4 +175,4 @@ jobs:
           ---
           Built by CI from \`${GITHUB_SHA}\`, signed with ${SIGNING}. Installing over an
           APK signed with a different key needs an uninstall first, which clears the
-          stored session and means signing in to Claude again."
+          stored Orca pairing and means pairing with Orca again."

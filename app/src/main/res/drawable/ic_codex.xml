@@ -1,0 +1,18 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+
+    <!--
+      A terminal prompt (">_") knocked out of a rounded square: a generic mark for the
+      Codex CLI, not OpenAI's trademarked logo. evenOdd makes the chevron and the cursor
+      bar holes, so the widget background shows through in both light and dark themes.
+    -->
+    <path
+        android:fillColor="@color/accent_codex"
+        android:fillType="evenOdd"
+        android:pathData="M10,4 H38 A6,6 0 0 1 44,10 V38 A6,6 0 0 1 38,44 H10 A6,6 0 0 1 4,38 V10 A6,6 0 0 1 10,4 Z
+            M12.5,14.5 L16,11 L27,22 L16,33 L12.5,29.5 L20,22 Z
+            M26,30 H36 V34.5 H26 Z" />
+</vector>

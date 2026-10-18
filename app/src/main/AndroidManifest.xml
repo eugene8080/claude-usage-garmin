@@ -5,10 +5,13 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
+    <!-- networkSecurityConfig: allows the plain ws:// link to desktop Orca; why it is safe is
+         in res/xml/network_security_config.xml. -->
     <application
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:supportsRtl="true"
         android:theme="@style/Theme.ClaudeUsage">
 
@@ -21,20 +24,42 @@
             </intent-filter>
         </activity>
 
-        <activity
-            android:name=".auth.LoginActivity"
-            android:exported="false"
-            android:label="@string/sign_in" />
-
+        <!-- One widget per provider. The Claude receiver keeps its original class name so
+             widgets placed before the Orca source stay bound to it. -->
         <receiver
             android:name=".widget.UsageWidgetReceiver"
-            android:exported="false">
+            android:exported="false"
+            android:label="@string/widget_label_claude">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/usage_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.CodexUsageWidgetReceiver"
+            android:exported="false"
+            android:label="@string/widget_label_codex">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/codex_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.CursorUsageWidgetReceiver"
+            android:exported="false"
+            android:label="@string/widget_label_cursor">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/cursor_widget_info" />
         </receiver>
 
     </application>
