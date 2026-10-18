@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="accent">#FFD97757</color>
-    <!-- Bar and mark colours of the Codex and Cursor widgets (Claude keeps "accent"). -->
-    <color name="accent_codex">#FF10A37F</color>
-    <color name="accent_cursor">#FF4F6BED</color>
+    <!-- Bar colours of the Codex and Cursor widgets (Claude keeps "accent"), taken from each
+         mark: Codex's blue-violet gradient, Cursor's monochrome cube - which also tints
+         ic_cursor, so it flips with the theme. -->
+    <color name="accent_codex">#FF5468F5</color>
+    <color name="accent_cursor">#FF1E1E1E</color>
     <color name="bar_track">#22000000</color>
     <color name="stale">#FFE0A000</color>
 </resources>

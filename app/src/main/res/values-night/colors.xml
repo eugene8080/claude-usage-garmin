@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="accent">#FFE8896B</color>
-    <color name="accent_codex">#FF3CC79B</color>
-    <color name="accent_cursor">#FF8EA0FF</color>
+    <color name="accent_codex">#FF8CA0FF</color>
+    <color name="accent_cursor">#FFEDEDED</color>
     <color name="bar_track">#33FFFFFF</color>
     <color name="stale">#FFFFC233</color>
 </resources>
