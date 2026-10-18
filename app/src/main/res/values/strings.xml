@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Claude Usage</string>
-    <string name="sign_in">Sign in to Claude</string>
-    <string name="widget_description">Claude usage (5H / 1W / 1W Fable) on your home screen</string>
+    <!-- Widget picker entries: one widget per provider, all fed by desktop Orca. -->
+    <string name="widget_label_claude">Claude usage</string>
+    <string name="widget_label_codex">Codex usage</string>
+    <string name="widget_label_cursor">Cursor usage</string>
+    <string name="widget_description">Claude usage (5H / 1W / 1W Fable) from Orca on your home screen</string>
+    <string name="widget_description_codex">Codex usage (5H / 1W) from Orca on your home screen</string>
+    <string name="widget_description_cursor">Cursor usage (plan / Auto / API) from Orca on your home screen</string>
 </resources>

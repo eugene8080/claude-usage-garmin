@@ -1,46 +1,55 @@
 package com.usage.claudewidget.ui
 
-import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.text.format.DateUtils
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.TextButton
-import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.usage.claudewidget.auth.LoginActivity
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import com.google.mlkit.vision.barcode.common.Barcode
+import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
+import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import com.usage.claudewidget.data.FetchResult
+import com.usage.claudewidget.data.LinkState
+import com.usage.claudewidget.data.OrcaAccountsParser
+import com.usage.claudewidget.data.Provider
 import com.usage.claudewidget.data.Storage
 import com.usage.claudewidget.data.UsageRepository
+import com.usage.claudewidget.orca.OrcaPairingCodec
 import com.usage.claudewidget.watch.WatchBridge
-import com.usage.claudewidget.widget.UsageWidget
+import com.usage.claudewidget.widget.ProviderUsageWidget
 import com.usage.claudewidget.work.RefreshScheduler
 import kotlinx.coroutines.launch
 
@@ -50,8 +59,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         // Opening the app re-registers the 15-minute background refresh with the system, in
         // case the OEM's background management dropped it (see RefreshScheduler). Only once
-        // signed in - before that there is nothing to fetch; sign-in schedules it itself.
-        if (Storage.get(this).isLoggedIn) {
+        // paired - before that there is nothing to fetch; pairing schedules it itself.
+        if (Storage.get(this).isPaired) {
             RefreshScheduler.ensurePeriodic(this)
         }
         setContent {
@@ -88,6 +97,7 @@ private fun AppTheme(content: @androidx.compose.runtime.Composable () -> Unit) {
 @androidx.compose.runtime.Composable
 private fun SetupScreen() {
     val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
     val storage = remember { Storage.get(context) }
     val scope = rememberCoroutineScope()
 
@@ -95,10 +105,16 @@ private fun SetupScreen() {
     var debug by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
 
+    // Pairing inputs. The address starts as the saved one, and a newly read code replaces it
+    // with the address that code names - which the user can still edit before saving.
+    var code by remember { mutableStateOf("") }
+    var address by remember { mutableStateOf(storage.pairing?.endpoint.orEmpty()) }
+    var pairMessage by remember { mutableStateOf("") }
+
     // Background-activity prompt. Re-evaluated every time the screen resumes, which is how
     // it notices the user coming back from the system settings it sent them to.
     var bg by remember { mutableStateOf(BackgroundAccess.status(context, storage)) }
-    var showBgDialog by remember { mutableStateOf(storage.isLoggedIn && bg.shouldPrompt) }
+    var showBgDialog by remember { mutableStateOf(storage.isPaired && bg.shouldPrompt) }
     LifecycleResumeEffect(Unit) {
         bg = BackgroundAccess.status(context, storage)
         status = describe(storage)
@@ -125,16 +141,57 @@ private fun SetupScreen() {
         )
     }
 
-    val loginLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) {
-        status = describe(storage)
+    /** A code was scanned or pasted: check it now, and take its address into the field. */
+    fun takeCode(input: String) {
+        code = input.trim()
+        pairMessage = when (val parsed = OrcaPairingCodec.parse(code)) {
+            is OrcaPairingCodec.ParseResult.Ok -> {
+                address = parsed.pairing.endpoint
+                "Pairing code read. Check the address, then tap Save and test."
+            }
+            is OrcaPairingCodec.ParseResult.Invalid -> parsed.reason
+        }
+    }
+
+    // Runs the same fetch -> widgets -> watch sequence as the background refresh, and shows
+    // each step's outcome. The watch step used to be skipped here, so a watch that was
+    // not receiving pushes looked fine from this button.
+    suspend fun testFetch() {
+        debug = "Contacting Orca…"
+        when (val r = UsageRepository(context).refresh()) {
+            is FetchResult.Success -> {
+                ProviderUsageWidget.updateAll(context)
+                val usage = Provider.entries.joinToString("\n") { provider ->
+                    r.usage[provider]?.let(OrcaAccountsParser::summarize) ?: "${provider.displayName}: -"
+                }
+                val claude = r.claudeWatch
+                if (claude == null) {
+                    debug = "$usage\nWatch: no Claude numbers to send"
+                } else {
+                    // The push can take up to ~35 s (one attempt, a 5 s pause, one retry), so
+                    // say what is happening rather than look frozen.
+                    debug = "$usage\nWatch: sending…"
+                    val push = WatchBridge.push(context, claude)
+                    debug = "$usage\nWatch: ${WatchBridge.describe(push)}"
+                }
+            }
+            is FetchResult.NeedsPairing -> {
+                ProviderUsageWidget.updateAll(context)
+                debug = "Pair again: ${r.reason}"
+            }
+            is FetchResult.Soft -> debug = "Couldn't fetch: ${r.reason}"
+        }
     }
 
     Column(
         // safeDrawingPadding: targetSdk 35+ is always edge-to-edge, so without it the title
-        // is drawn under the status-bar clock.
-        modifier = Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp),
+        // is drawn under the status-bar clock. Scrolls because the pairing form plus the
+        // status can outgrow a small screen.
+        modifier = Modifier
+            .fillMaxSize()
+            .safeDrawingPadding()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text("Claude Usage Widget", style = MaterialTheme.typography.headlineSmall)
@@ -147,37 +204,12 @@ private fun SetupScreen() {
         )
         Text(status, style = MaterialTheme.typography.bodyMedium)
 
-        Button(onClick = { loginLauncher.launch(Intent(context, LoginActivity::class.java)) }) {
-            Text(if (storage.isLoggedIn) "Re-sign in" else "Sign in")
-        }
-
-        // Runs the same fetch -> widget -> watch sequence as the background refresh, and shows
-        // each step's outcome. The watch step used to be skipped here, so a watch that was
-        // not receiving pushes looked fine from this button.
-        OutlinedButton(enabled = !busy, onClick = {
+        // Runs the same fetch -> widgets -> watch sequence as the background refresh.
+        OutlinedButton(enabled = !busy && storage.isPaired, onClick = {
             scope.launch {
                 busy = true
                 try {
-                    debug = "Fetching…"
-                    when (val r = UsageRepository(context).refresh()) {
-                        is FetchResult.Success -> {
-                            UsageWidget.updateAll(context)
-                            val usage = buildString {
-                                append("5H: ${r.snapshot.fiveHour.utilization}%   ")
-                                append("1W: ${r.snapshot.sevenDay.utilization}%")
-                                r.snapshot.modelWeekly?.let {
-                                    append("   1W ${it.modelName}: ${it.window.utilization}%")
-                                }
-                            }
-                            // The push can take up to ~35 s (one attempt, a 5 s pause, one
-                            // retry), so say what is happening rather than look frozen.
-                            debug = "$usage\nWatch: sending…"
-                            val push = WatchBridge.push(context, r.snapshot)
-                            debug = "$usage\nWatch: ${WatchBridge.describe(push)}"
-                        }
-                        is FetchResult.NeedsLogin -> debug = "Session expired. Sign in again."
-                        is FetchResult.Soft -> debug = "Transient: ${r.reason}"
-                    }
+                    testFetch()
                 } finally {
                     busy = false
                     status = describe(storage)
@@ -188,6 +220,112 @@ private fun SetupScreen() {
             }
         }) { Text("Test fetch now") }
 
+        if (debug.isNotBlank()) {
+            Text(debug, style = MaterialTheme.typography.titleMedium)
+        }
+
+        HorizontalDivider()
+        Text(
+            if (storage.isPaired) "Pair again with desktop Orca" else "Pair with desktop Orca",
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Text(
+            "On your computer, open Orca → Settings → Mobile → Pair a phone. Choose LAN and " +
+                "the computer's Tailscale address (100.x.y.z), so the widget also works away " +
+                "from home, and click Generate QR code. Then scan it here, or copy the pairing " +
+                "link and paste it.",
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(enabled = !busy, onClick = {
+                // Google's code scanner runs in Play services' own activity: no camera
+                // permission here, and nothing to bundle beyond the client library.
+                val options = GmsBarcodeScannerOptions.Builder()
+                    .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+                    .build()
+                GmsBarcodeScanning.getClient(context, options).startScan()
+                    .addOnSuccessListener { barcode -> takeCode(barcode.rawValue.orEmpty()) }
+                    .addOnFailureListener { e ->
+                        pairMessage = "The QR scanner isn't available (${e.message}). " +
+                            "Copy the pairing link in Orca and paste it instead."
+                    }
+            }) { Text("Scan QR code") }
+            OutlinedButton(enabled = !busy, onClick = {
+                takeCode(clipboard.getText()?.text.orEmpty())
+            }) { Text("Paste") }
+        }
+        OutlinedTextField(
+            value = code,
+            onValueChange = { takeCode(it) },
+            label = { Text("Pairing code or orca://pair link") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            value = address,
+            onValueChange = { address = it },
+            label = { Text("Orca address") },
+            placeholder = { Text("100.x.y.z or ws://host:6768") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Button(enabled = !busy, onClick = {
+            val existing = storage.pairing
+            val pairing = when {
+                code.isNotBlank() -> when (val parsed = OrcaPairingCodec.parse(code)) {
+                    is OrcaPairingCodec.ParseResult.Ok -> parsed.pairing
+                    is OrcaPairingCodec.ParseResult.Invalid -> {
+                        pairMessage = parsed.reason
+                        return@Button
+                    }
+                }
+                // No new code: an address change for the existing pairing.
+                existing != null -> existing
+                else -> {
+                    pairMessage = "Scan or paste a pairing code from Orca first."
+                    return@Button
+                }
+            }
+            val endpoint = OrcaPairingCodec.normalizeEndpoint(address.ifBlank { pairing.endpoint })
+            if (endpoint == null) {
+                pairMessage = "\"$address\" is not an address. Enter the computer's address, " +
+                    "e.g. 100.64.0.5 or ws://100.64.0.5:6768."
+                return@Button
+            }
+            if (OrcaPairingCodec.isLoopback(endpoint)) {
+                pairMessage = "$endpoint points at this phone, not your computer. In Orca, choose " +
+                    "the computer's Tailscale or Wi-Fi address and copy the code again - or type " +
+                    "that address here."
+                return@Button
+            }
+            // A new code may be another computer: drop the old numbers rather than show them
+            // under the new pairing. An address-only change keeps them.
+            if (code.isNotBlank()) storage.clearUsage()
+            storage.pairing = pairing.copy(endpoint = endpoint)
+            address = endpoint
+            code = ""
+            pairMessage = "Saved. Testing the connection…"
+            scope.launch {
+                busy = true
+                try {
+                    testFetch()
+                    pairMessage = if (storage.linkState == LinkState.OK) {
+                        RefreshScheduler.ensurePeriodic(context)
+                        "Paired ✓ - the widgets refresh every 15 minutes."
+                    } else {
+                        "Saved, but the test failed: ${storage.linkDetail}"
+                    }
+                } finally {
+                    busy = false
+                    status = describe(storage)
+                }
+            }
+        }) { Text("Save and test") }
+        if (pairMessage.isNotBlank()) {
+            Text(pairMessage, style = MaterialTheme.typography.bodyMedium)
+        }
+
+        HorizontalDivider()
         // Opens the same prompt on demand; it was a bare "Disable battery optimization"
         // button, which covered only Android's layer and not the manufacturer's.
         OutlinedButton(onClick = {
@@ -196,22 +334,43 @@ private fun SetupScreen() {
         }) {
             Text(if (bg.batteryExempt && !bg.stoppedSinceAck) "Background settings" else "Background settings ⚠")
         }
-
-        if (debug.isNotBlank()) {
-            Text(debug, style = MaterialTheme.typography.titleMedium)
+        if (storage.isPaired) {
+            // Forgets the device token here; the device entry itself is removed in desktop
+            // Orca (Settings > Mobile), which is the only place that can revoke it.
+            TextButton(enabled = !busy, onClick = {
+                storage.pairing = null
+                storage.clearUsage()
+                storage.linkState = LinkState.NEEDS_PAIRING
+                storage.linkDetail = "not paired with Orca"
+                address = ""
+                pairMessage = "Unpaired. Also remove this device in Orca → Settings → Mobile."
+                status = describe(storage)
+                scope.launch { ProviderUsageWidget.updateAll(context) }
+            }) { Text("Unpair") }
         }
     }
 }
 
 private fun describe(s: Storage): String = buildString {
-    append(if (s.isLoggedIn) "Signed in ✓" else "Not signed in")
-    append("\norg: ").append(s.orgId ?: "-")
-    if (s.hasSnapshot) {
-        append("\nlast: 5H ").append(s.fiveHourUtil.toInt()).append("%  1W ")
-            .append(s.sevenDayUtil.toInt()).append("%")
-        if (s.hasModelWeekly) {
-            append("  1W ").append(s.modelWeeklyName).append(" ")
-                .append(s.modelWeeklyUtil.toInt()).append("%")
+    val pairing = s.pairing
+    append(if (pairing == null) "Orca: not paired" else "Orca: ${pairing.endpoint}")
+    if (pairing != null) {
+        append("\nlink: ")
+        when {
+            s.linkAttemptAt == 0L -> append("not tried yet")
+            s.linkState == LinkState.OK -> append("OK · ").append(ago(s.linkSuccessAt))
+            else -> append(s.linkDetail.ifBlank { s.linkState.name.lowercase() })
+                .append(" · ").append(ago(s.linkAttemptAt))
+        }
+        if (s.linkState != LinkState.OK && s.linkSuccessAt != 0L) {
+            append("\nlast reached Orca: ").append(ago(s.linkSuccessAt))
+        }
+    }
+    Provider.entries.forEach { provider ->
+        val usage = s.usage(provider) ?: return@forEach
+        append("\n").append(OrcaAccountsParser.summarize(usage))
+        if (usage.hasData && usage.updatedAtEpochMs != 0L) {
+            append(" · ").append(ago(usage.updatedAtEpochMs))
         }
     }
     // The watch's own "not updated recently" only says THAT it is stale; this line says why.

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Same sizing as usage_widget_info.xml (the Claude widget). Launcher3 derives the maximum column span from maxResizeWidth far more
+     conservatively than a plain dp comparison: at 320dp a Pixel-class 4-column
+     grid (78dp cells) refused to widen past two columns, even though three
+     columns measure only 266dp. 640dp lets the widget reach the full grid,
+     which is where the side-by-side ShortLayout is meant to live. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="40dp"
+    android:minHeight="40dp"
+    android:targetCellWidth="1"
+    android:targetCellHeight="1"
+    android:minResizeWidth="40dp"
+    android:minResizeHeight="40dp"
+    android:maxResizeWidth="640dp"
+    android:maxResizeHeight="240dp"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="0"
+    android:widgetCategory="home_screen"
+    android:description="@string/widget_description_codex"
+    android:initialLayout="@layout/glance_default_loading_layout"
+    android:previewImage="@drawable/ic_codex" />

@@ -1,6 +1,6 @@
 # Phone ↔ watch app ↔ face contract
 
-Updated: 2026-09-27
+Updated: 2026-10-18
 
 The Android app, the Connect IQ watch app and the watch faces are built separately, and no
 compiler sees across them. Every value they must agree on is listed here — an app id, message
@@ -44,7 +44,7 @@ Storage keys:
 | `fhr` | Number | always | 5-hour window reset, epoch **seconds** |
 | `wk` | Number | always | Weekly pool, % used |
 | `wkr` | Number | always | Weekly pool reset, epoch seconds |
-| `ts` | Number | always | When the phone fetched these numbers, epoch seconds |
+| `ts` | Number | always | When these numbers were fetched from Anthropic (by desktop Orca, which the phone reads them from — see `docs/orca-protocol.md`), epoch seconds |
 | `mw` | Number | with a model cap | Per-model weekly cap, % used |
 | `mwr` | Number | with a model cap | Per-model weekly reset, epoch seconds |
 | `mwn` | String | with a model cap | The capped model's name as the API gives it (e.g. `Fable`) |

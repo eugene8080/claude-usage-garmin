@@ -2,8 +2,8 @@
 
 # ✳️ Claude Usage Widget
 
-**An Android home-screen widget for your Claude subscription usage — plus a Garmin watch app and two watch faces.**
-Keeps your `5H`, `1W` and `1W Fable` percentages (plus *“resets in”* countdowns) live on your home screen and on your wrist.
+**Android home-screen widgets for your Claude, Codex and Cursor usage — plus a Garmin watch app and two watch faces.**
+Keeps your `5H`, `1W` and `1W Fable` percentages (plus reset times) live on your home screen and on your wrist, read from [Orca](https://www.onorca.dev) on your computer.
 
 ![status: working](https://img.shields.io/badge/status-working-brightgreen)
 ![platform: Android 8+](https://img.shields.io/badge/platform-Android%208%2B-3DDC84?logo=android&logoColor=white)
@@ -17,7 +17,7 @@ Keeps your `5H`, `1W` and `1W Fable` percentages (plus *“resets in”* countdo
 
 ### [![Download APK](https://img.shields.io/badge/⬇%20Download%20APK-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/eugene8080/claude-usage-garmin/releases/latest/download/claude-usage-widget.apk)
 
-Sign in once on the phone; the widget refreshes itself in the background.
+Pair once with Orca on your computer; the widgets refresh themselves in the background.
 
 <sub>The button serves the latest tagged release. Every push is also built by CI —
 grab `app-debug.apk` from the newest run under
@@ -41,16 +41,18 @@ change that hasn't been tagged yet.</sub>
 > same key and updates install straight over one another; without them AGP generates a
 > per-machine debug key, and since a CI runner is a new machine every run, each build gets
 > a different one and every update needs an uninstall first. Uninstalling clears the stored
-> session, so you sign in to Claude again afterwards.
+> pairing, so you pair with Orca again afterwards.
 
 Then continue with first-run setup below.
 
 ## 👋 First-run setup
 
-1. Open the **Claude Usage** app and tap **Sign in**, then complete the normal `claude.ai` login in the WebView. It closes automatically once it captures your session.
-2. Tap **Test fetch now** to confirm it prints your current `5H`, `1W` and `1W Fable` percentages. These should match `claude.ai/settings/usage`.
+1. **On your computer**, open **Orca → Settings → Mobile → Pair a phone**. Choose **Connection: LAN** and the computer's **Tailscale address** (`100.x.y.z`) so the widgets also work away from home (a Wi-Fi address works only on the same network), then click **Generate QR code**.
+2. **On the phone**, open the **Claude Usage** app and tap **Scan QR code** (or copy Orca's pairing link and tap **Paste**). Check the **Orca address**, then tap **Save and test**. It prints your Claude, Codex and Cursor numbers; they should match Orca's status bar.
 3. **Let it run in the background — required.** The app opens a *Keep Claude Usage running* prompt (also under **Background settings**); follow both parts. See [Required phone settings](#-required-phone-settings) below.
-4. Long-press your home screen → **Widgets** → **Claude Usage**, drag it on, and resize it however you like. Tap it any time to refresh.
+4. Long-press your home screen → **Widgets** → **Claude Usage**, and drag on **Claude usage**, **Codex usage** and/or **Cursor usage** — one widget per provider. Resize each however you like. Tap one any time to refresh.
+
+Already using the Orca phone app? Pair the widget as a **new** device anyway: it gets its own entry in Orca's device list, so either can be revoked without the other.
 
 ## 🔋 Required phone settings
 
@@ -66,7 +68,8 @@ If a watch send is still stopped by the phone later, the prompt comes back and t
 
 ## 📋 Requirements
 
-- A Claude **Pro/Max** subscription (this reads consumer subscription usage, not API-key usage).
+- **[Orca](https://www.onorca.dev) running on your computer**, signed in to the providers you want to see (Claude Code, Codex, Cursor) — the widgets show what Orca's status bar shows. The numbers refresh only while Orca is running and reachable.
+- The phone able to reach that computer: on the same network, or both on **Tailscale**.
 - **Android 8.0 (API 26)** or newer. Built and tested on a Pixel 9 / Android 16 and an Oppo Find N5 (ColorOS).
 - **Background activity allowed** for the app — see [Required phone settings](#-required-phone-settings).
 
@@ -245,24 +248,24 @@ reached the watch. **Test fetch now** runs a fetch and a send on the spot.
 
 ## ⚠️ Unofficial: use at your own risk
 
-Anthropic provides no public API for subscription (Pro/Max) usage. This widget replays the same **undocumented internal endpoint** that `claude.ai/settings/usage` calls in the browser, authorized by session cookies harvested from an in-app WebView login. It can break at any time if Anthropic changes the endpoint, the auth flow, or its Cloudflare protection. It is not a sanctioned integration, so use it for your own account only.
+Neither Anthropic, OpenAI nor Cursor offers a public API for subscription usage, and neither does Orca for its phone link. The widget talks to desktop Orca the way Orca's own phone app does — the same versioned, end-to-end encrypted mobile protocol, ported from Orca's open-source code (see [docs/orca-protocol.md](docs/orca-protocol.md)) — and Orca in turn reads each provider's internal usage endpoints with your existing sign-ins. An Orca update can change that protocol, and a provider can change its endpoint, at any time. It is not a sanctioned integration, so use it for your own accounts only.
 
 ## ✨ Highlights
 
-- **Every rolling window at a glance.** The 5-hour and 1-week usage percentages plus the separate per-model weekly cap — `1W Fable` today — each with a live countdown to its reset. The model name comes from the endpoint, and the row hides itself on accounts that aren't metered one.
-- **Refreshes itself.** A background job updates every ~15 minutes; tap the widget to force an immediate refresh.
-- **Sign in once.** A single `claude.ai` login; you only re-authenticate when the long-lived session finally expires (weeks).
+- **Three providers, one widget each.** Claude: `5H`, `1W` and the per-model `1W Fable` cap. Codex: `5H` and `1W`. Cursor: the monthly plan plus its `Auto` and `API` pools. Each row shows when it resets, and a row Orca has no numbers for is left out.
+- **Refreshes itself.** A background job updates every ~15 minutes; tap a widget to force an immediate refresh.
+- **Pair once.** One QR scan from Orca; no provider passwords or cookies on the phone. You pair again only if you revoke the device in Orca.
 - **Resizes freely.** The full stacked layout fits even a one-row (3×1) widget; narrower or shorter sizes get compact layouts. Adapts to light & dark themes.
 
 ## 🛠 How it works
 
-You log in once through a real `claude.ai` WebView. The app harvests the `sessionKey` and `cf_clearance` cookies plus the WebView User-Agent, stores them encrypted on-device, and fetches usage headlessly with `OkHttp`. The endpoint serves two payload shapes — a modern top-level `limits[]` array of `{kind, percent, resets_at, scope}` entries, and the older fixed `five_hour` / `seven_day` / `seven_day_<model>` keys — and the parser reads whichever one it gets. When a headless fetch hits Cloudflare's challenge, the app silently re-solves it in an off-screen WebView (no interaction needed while `sessionKey` is valid) and retries. A `WorkManager` job refreshes every ~15 minutes. You only sign in again when the long-lived `sessionKey` itself expires, at which point the widget shows a *“Tap to sign in”* state.
+Desktop Orca already fetches every provider's usage with the sign-ins on your computer (Claude Code's login, Codex's, Cursor's). The phone pairs with Orca as one more mobile device — the pairing QR carries the computer's address, a device token, and Orca's public key — and every ~15 minutes a `WorkManager` job opens Orca's mobile WebSocket (port 6768), runs Orca's E2EE v2 handshake (X25519 + HKDF-SHA256, XSalsa20-Poly1305 frames, pinned to the paired key), and makes one `accounts.list` call with `refreshUsage`. The reply holds each provider's windows as `{usedPercent, windowMinutes, resetsAt}`; the app stores them per provider, re-renders the widgets, and pushes the Claude numbers to the watch. When Orca can't be reached (computer off, no Tailscale) the widgets keep their last numbers and show the stale dot once they are over 31 minutes old; when Orca refuses the device (revoked) they show *“Tap to pair with Orca”*. The protocol details and how they were verified are in [docs/orca-protocol.md](docs/orca-protocol.md).
 
 The widget picks a layout from the size you resize it to. A **Full** layout stacks the meters, each with its label, bar, percentage and *“resets in”* — down to a single home-screen row, where it tightens its type and spacing to fit the title and all three meters (the layout reads the widget's exact size rather than snapping to preset buckets); a **Short** layout sets the three meters side by side for a widget squeezed below a normal row; and a **Compact** layout stacks mini bars for a narrow widget. The Claude mark and title appear once there's height to fit them, and *“resets in”* shortens to a bare countdown when narrow. All three adapt to light and dark themes, and a small amber dot appears when the numbers are stale.
 
 ## 🔒 Security notes
 
-Credentials (`sessionKey`, `cf_clearance`, User-Agent, org ID) are stored in `EncryptedSharedPreferences` backed by the Android Keystore, and `android:allowBackup="false"` keeps them out of cloud backups. The `sessionKey` is as sensitive as your account password (anyone who extracts it can act as you), so treat a rooted or compromised device accordingly. No secrets are stored in the repo or baked into the APK.
+The phone holds no provider credentials — those stay with Orca on the computer. It stores only the Orca pairing (address, device token, Orca's public key) in `EncryptedSharedPreferences` backed by the Android Keystore, and `android:allowBackup="false"` keeps it out of cloud backups. The device token lets its holder read what the Orca phone app can, from wherever the computer is reachable; revoke it in **Orca → Settings → Mobile** if the phone is lost. The link is plain `ws://` at the transport level (the app allows cleartext for that reason), but everything after the opening hello is end-to-end encrypted and authenticated against the key pinned at pairing, so a spoofed or tampered connection fails the handshake. Upgrading from a claude.ai build deletes the old `sessionKey` cookie on first start. No secrets are stored in the repo or baked into the APK.
 
 ---
 
@@ -317,10 +320,10 @@ base64 -w0 release.keystore   # paste into the KEYSTORE_BASE64 secret
 
 | Path | What lives there |
 | --- | --- |
-| `app/.../data` | Endpoint constants, encrypted storage, cookie harvesting, the Cloudflare resolver, and the repository that orchestrates fetch, Cloudflare retry, and auth-state transitions. |
-| `auth/LoginActivity.kt` | The WebView login. |
-| `ui/MainActivity.kt` | The setup / debug screen. |
-| `widget/` | The Glance widget and its layouts. |
+| `app/.../orca` | The desktop Orca link: pairing-code parsing, the E2EE v2 session and NaCl primitives, and the one-call WebSocket client ([docs/orca-protocol.md](docs/orca-protocol.md)). |
+| `app/.../data` | Encrypted storage, the `accounts.list` parser, and the repository that runs a fetch and records the link state. |
+| `ui/MainActivity.kt` | The pairing / status screen. |
+| `widget/` | The Glance widgets (one per provider) and their shared layouts. |
 | `work/` | Background refresh scheduling. |
 | `watch/WatchBridge.kt` | The push to the Garmin watch app — the phone side of [`garmin/CONTRACT.md`](garmin/CONTRACT.md). |
 | `garmin/` | The Connect IQ watch app, the watch faces, their shared files and the phone↔watch contract (see [On your Garmin watch](#-on-your-garmin-watch)). |

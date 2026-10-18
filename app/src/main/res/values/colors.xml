@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="accent">#FFD97757</color>
+    <!-- Bar and mark colours of the Codex and Cursor widgets (Claude keeps "accent"). -->
+    <color name="accent_codex">#FF10A37F</color>
+    <color name="accent_cursor">#FF4F6BED</color>
     <color name="bar_track">#22000000</color>
     <color name="stale">#FFE0A000</color>
 </resources>

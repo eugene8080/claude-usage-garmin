@@ -1,110 +1,105 @@
 package com.usage.claudewidget.data
 
 import android.content.Context
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import org.json.JSONArray
-import java.util.concurrent.TimeUnit
+import android.util.Log
+import com.usage.claudewidget.orca.OrcaCallResult
+import com.usage.claudewidget.orca.OrcaClient
+import org.json.JSONObject
 
 sealed interface FetchResult {
-    data class Success(val snapshot: UsageSnapshot) : FetchResult
-    /** sessionKey is dead; user must log in again. */
-    data object NeedsLogin : FetchResult
-    /** Transient (no network, Cloudflare unresolved, server error). Keep last snapshot. */
-    data class Soft(val reason: String) : FetchResult
+    data class Success(
+        val usage: Map<Provider, ProviderUsage>,
+        /** Claude's numbers for the Garmin watch; null when Orca had no Claude windows. */
+        val claudeWatch: UsageSnapshot?,
+    ) : FetchResult
+
+    /** Not paired, or desktop Orca refused this device: the user must pair (again). */
+    data class NeedsPairing(val reason: String) : FetchResult
+
+    /**
+     * The fetch failed but the pairing is fine; the last numbers stay on the widgets.
+     * [retry] is whether trying again soon could help (a timeout mid-call) as opposed to
+     * waiting for the next 15-minute run (the computer is off).
+     */
+    data class Soft(val reason: String, val retry: Boolean) : FetchResult
 }
 
-class UsageRepository(private val context: Context) {
-
+/**
+ * Fetches every provider's usage from desktop Orca in one `accounts.list` call and records
+ * the outcome in [Storage] for the widgets and the app's status screen.
+ */
+class UsageRepository(
+    context: Context,
+    private val client: OrcaClient = OrcaClient(),
+) {
     private val storage = Storage.get(context)
-    private val client = OkHttpClient.Builder()
-        .callTimeout(20, TimeUnit.SECONDS)
-        .followRedirects(false) // a 302 to /login means the session is dead
-        .build()
 
-    suspend fun refresh(): FetchResult = withContext(Dispatchers.IO) {
-        if (!storage.isLoggedIn) return@withContext FetchResult.NeedsLogin
-
-        // Make sure we know which org to query.
-        val org = storage.orgId ?: when (val o = discoverOrg()) {
-            null -> return@withContext FetchResult.Soft("org-unknown")
-            else -> o.also { storage.orgId = it }
+    suspend fun refresh(): FetchResult {
+        val pairing = storage.pairing
+        if (pairing == null) {
+            record(LinkState.NEEDS_PAIRING, "not paired with Orca")
+            return FetchResult.NeedsPairing("not paired with Orca")
         }
+        storage.linkAttemptAt = System.currentTimeMillis()
 
-        when (val r = getUsage(org)) {
-            is FetchResult.Soft -> {
-                // Could be an expired cf_clearance: try one silent WebView re-solve.
-                if (r.reason == "cloudflare") {
-                    val resolved = CloudflareResolver.resolve(context, storage)
-                    if (resolved) getUsage(org) else FetchResult.Soft("cloudflare-unresolved")
-                } else r
-            }
-            else -> r
-        }.also { result ->
-            storage.authState =
-                if (result is FetchResult.NeedsLogin) AuthState.NEEDS_LOGIN else AuthState.OK
-            if (result is FetchResult.Success) storage.saveSnapshot(result.snapshot)
-        }
-    }
-
-    private fun getUsage(org: String): FetchResult {
-        val req = buildRequest(Const.usageUrl(org)) ?: return FetchResult.NeedsLogin
-        return try {
-            client.newCall(req).execute().use { resp ->
-                val body = resp.body?.string().orEmpty()
-                when {
-                    resp.code == 200 -> FetchResult.Success(
-                        UsageSnapshot.parse(body, System.currentTimeMillis())
-                    )
-                    resp.code == 401 || resp.isRedirect -> FetchResult.NeedsLogin
-                    resp.code == 403 || resp.code == 503 || body.contains("Just a moment") ->
-                        FetchResult.Soft("cloudflare")
-                    else -> FetchResult.Soft("http-${resp.code}")
+        // refreshUsage: desktop Orca pauses its own polling while its window is unfocused, so
+        // without this the snapshot could be stale; Orca debounces repeated refreshes itself.
+        val params = JSONObject().put("refreshUsage", true)
+        return when (val result = client.call(pairing, METHOD_ACCOUNTS_LIST, params)) {
+            is OrcaCallResult.Ok -> {
+                val parsed = try {
+                    OrcaAccountsParser.parse(result.result)
+                } catch (e: IllegalArgumentException) {
+                    Log.w(TAG, "unreadable accounts snapshot: ${e.message}")
+                    record(LinkState.FAILED, "unexpected reply from Orca (${e.message})")
+                    return FetchResult.Soft("unexpected reply from Orca", retry = false)
                 }
+                val merged = parsed.usage.mapValues { (provider, fresh) -> keepLastMeters(provider, fresh) }
+                storage.saveUsage(merged.values)
+                storage.linkSuccessAt = System.currentTimeMillis()
+                record(LinkState.OK, "")
+                FetchResult.Success(merged, parsed.claudeWatch)
             }
-        } catch (e: Exception) {
-            FetchResult.Soft(e.message ?: "io")
+            is OrcaCallResult.Unauthorized -> {
+                record(LinkState.NEEDS_PAIRING, result.reason)
+                FetchResult.NeedsPairing(result.reason)
+            }
+            is OrcaCallResult.Unreachable -> {
+                record(LinkState.UNREACHABLE, result.reason)
+                FetchResult.Soft(result.reason, retry = false)
+            }
+            is OrcaCallResult.Failed -> {
+                record(LinkState.FAILED, result.reason)
+                FetchResult.Soft(result.reason, retry = true)
+            }
+            is OrcaCallResult.RpcError -> {
+                val reason = "Orca error ${result.code}" + if (result.message.isBlank()) "" else ": ${result.message}"
+                record(LinkState.FAILED, reason)
+                FetchResult.Soft(reason, retry = true)
+            }
         }
     }
 
-    private fun discoverOrg(): String? {
-        val req = buildRequest(Const.ORGS_URL) ?: return null
-        return try {
-            client.newCall(req).execute().use { resp ->
-                if (resp.code != 200) return null
-                val arr = JSONArray(resp.body?.string().orEmpty())
-                if (arr.length() == 0) return null
-                // Single-org accounts: take [0]. Multi-org: prefer one with a chat capability.
-                for (i in 0 until arr.length()) {
-                    val o = arr.getJSONObject(i)
-                    val caps = o.optJSONArray("capabilities")
-                    val isChat = caps != null && (0 until caps.length()).any {
-                        caps.optString(it).contains("chat", true) ||
-                            caps.optString(it).contains("claude_ai", true)
-                    }
-                    if (isChat) return o.optString("uuid").ifBlank { o.optString("id") }
-                }
-                arr.getJSONObject(0).let { it.optString("uuid").ifBlank { it.optString("id") } }
-            }
-        } catch (_: Exception) {
-            null
-        }
+    /**
+     * A provider Orca has no numbers for this time (its fetch failed, or Orca dropped data
+     * older than 30 minutes) keeps the last numbers the widget had, with the new status.
+     * Their own `updatedAt` stays, so the widget's stale dot shows how old they are - the
+     * same "keep the last snapshot" behaviour the widget always had.
+     */
+    private fun keepLastMeters(provider: Provider, fresh: ProviderUsage): ProviderUsage {
+        if (fresh.hasData) return fresh
+        val last = storage.usage(provider) ?: return fresh
+        if (!last.hasData) return fresh
+        return last.copy(status = fresh.status, error = fresh.error)
     }
 
-    private fun buildRequest(url: String): Request? {
-        val session = storage.sessionKey ?: return null
-        val cf = storage.cfClearance
-        val cookie = buildString {
-            append("${Const.COOKIE_SESSION}=$session")
-            if (!cf.isNullOrBlank()) append("; ${Const.COOKIE_CF}=$cf")
-        }
-        val builder = Request.Builder()
-            .url(url)
-            .header("Accept", "*/*")
-            .header("Cookie", cookie)
-        storage.userAgent?.let { builder.header("User-Agent", it) }
-        return builder.get().build()
+    private fun record(state: LinkState, detail: String) {
+        storage.linkState = state
+        storage.linkDetail = detail
+    }
+
+    private companion object {
+        const val TAG = "UsageRepository"
+        const val METHOD_ACCOUNTS_LIST = "accounts.list"
     }
 }

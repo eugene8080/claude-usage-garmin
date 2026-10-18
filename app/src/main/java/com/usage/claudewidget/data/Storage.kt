@@ -4,97 +4,101 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import com.usage.claudewidget.orca.OrcaPairing
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 
 /**
  * Two-tier storage:
- *  - [secure]   EncryptedSharedPreferences for credentials (sessionKey, cf_clearance, UA, orgId).
- *  - [snapshot] Plain prefs for the non-secret usage snapshot the widget renders on every frame.
+ *  - [secure]   EncryptedSharedPreferences for the desktop Orca pairing (device token, pinned key).
+ *  - [snapshot] Plain prefs for the non-secret usage snapshots the widgets render on every frame.
  */
 class Storage private constructor(
     private val secure: SharedPreferences,
     private val snapshot: SharedPreferences,
 ) {
-    // ---- credentials (encrypted) ----
-    var sessionKey: String?
-        get() = secure.getString("sessionKey", null)
-        set(v) = secure.edit().putString("sessionKey", v).apply()
-
-    var cfClearance: String?
-        get() = secure.getString("cf_clearance", null)
-        set(v) = secure.edit().putString("cf_clearance", v).apply()
-
-    var userAgent: String?
-        get() = secure.getString("user_agent", null)
-        set(v) = secure.edit().putString("user_agent", v).apply()
-
-    var orgId: String?
-        get() = secure.getString("org_id", null)
-        set(v) = secure.edit().putString("org_id", v).apply()
-
-    val isLoggedIn: Boolean get() = !sessionKey.isNullOrBlank()
-
-    fun clearCredentials() {
-        secure.edit().clear().apply()
+    /**
+     * Emits whenever the plain snapshot prefs change (usage, link state, watch status) -
+     * which every refresh, pairing and unpairing writes. The widgets recompose from it.
+     *
+     * The listener is held by this flow's closure until the collector goes away:
+     * SharedPreferences keeps only a weak reference to it.
+     */
+    fun snapshotChanges(): Flow<Unit> = callbackFlow {
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> trySend(Unit) }
+        snapshot.registerOnSharedPreferenceChangeListener(listener)
+        awaitClose { snapshot.unregisterOnSharedPreferenceChangeListener(listener) }
     }
 
-    // ---- usage snapshot (plain, read by the widget) ----
-    var fiveHourUtil: Float
-        get() = snapshot.getFloat("fh_util", -1f)
-        set(v) = snapshot.edit().putFloat("fh_util", v).apply()
+    // ---- desktop Orca pairing (encrypted) ----
+    //
+    // The device token is a bearer credential for this phone's entry in desktop Orca: anyone
+    // holding it (and able to reach the computer) can read what the Orca phone app can. It
+    // never leaves the encrypted tier.
 
-    var fiveHourReset: Long
-        get() = snapshot.getLong("fh_reset", 0L)
-        set(v) = snapshot.edit().putLong("fh_reset", v).apply()
+    var pairing: OrcaPairing?
+        get() {
+            val endpoint = secure.getString(KEY_ENDPOINT, null) ?: return null
+            val token = secure.getString(KEY_DEVICE_TOKEN, null) ?: return null
+            val publicKey = secure.getString(KEY_PUBLIC_KEY, null) ?: return null
+            return OrcaPairing(endpoint, token, publicKey, secure.getString(KEY_PAIRED_DEVICE_ID, null))
+        }
+        set(value) {
+            val edit = secure.edit()
+            if (value == null) {
+                edit.remove(KEY_ENDPOINT).remove(KEY_DEVICE_TOKEN).remove(KEY_PUBLIC_KEY).remove(KEY_PAIRED_DEVICE_ID)
+            } else {
+                edit.putString(KEY_ENDPOINT, value.endpoint)
+                    .putString(KEY_DEVICE_TOKEN, value.deviceToken)
+                    .putString(KEY_PUBLIC_KEY, value.publicKeyB64)
+                    .putString(KEY_PAIRED_DEVICE_ID, value.pairedDeviceId)
+            }
+            // commit, not apply: the next step (a test fetch, a background refresh) reads it back.
+            edit.commit()
+        }
 
-    var sevenDayUtil: Float
-        get() = snapshot.getFloat("wk_util", -1f)
-        set(v) = snapshot.edit().putFloat("wk_util", v).apply()
+    val isPaired: Boolean get() = pairing != null
 
-    var sevenDayReset: Long
-        get() = snapshot.getLong("wk_reset", 0L)
-        set(v) = snapshot.edit().putLong("wk_reset", v).apply()
+    // ---- per-provider usage (plain, read by the widgets) ----
 
-    /** Per-model weekly window; -1 means the endpoint reported none for this account. */
-    var modelWeeklyUtil: Float
-        get() = snapshot.getFloat("mw_util", -1f)
-        set(v) = snapshot.edit().putFloat("mw_util", v).apply()
+    fun usage(provider: Provider): ProviderUsage? =
+        snapshot.getString(usageKey(provider), null)?.let(ProviderUsage::fromJson)
 
-    var modelWeeklyReset: Long
-        get() = snapshot.getLong("mw_reset", 0L)
-        set(v) = snapshot.edit().putLong("mw_reset", v).apply()
-
-    /** The model the endpoint named for that window, e.g. "Fable". */
-    var modelWeeklyName: String
-        get() = snapshot.getString("mw_name", "").orEmpty()
-        set(v) = snapshot.edit().putString("mw_name", v).apply()
-
-    val hasModelWeekly: Boolean get() = modelWeeklyUtil >= 0f && modelWeeklyName.isNotBlank()
-
-    var fetchedAt: Long
-        get() = snapshot.getLong("fetched_at", 0L)
-        set(v) = snapshot.edit().putLong("fetched_at", v).apply()
-
-    /** AuthState ordinal; widget shows "Tap to sign in" when NEEDS_LOGIN. */
-    var authState: AuthState
-        get() = AuthState.entries.getOrElse(snapshot.getInt("auth_state", 0)) { AuthState.OK }
-        set(v) = snapshot.edit().putInt("auth_state", v.ordinal).apply()
-
-    val hasSnapshot: Boolean get() = fiveHourUtil >= 0f
-
-    fun saveSnapshot(s: UsageSnapshot) {
-        snapshot.edit()
-            .putFloat("fh_util", s.fiveHour.utilization)
-            .putLong("fh_reset", s.fiveHour.resetsAtEpochMs)
-            .putFloat("wk_util", s.sevenDay.utilization)
-            .putLong("wk_reset", s.sevenDay.resetsAtEpochMs)
-            // Write -1 when absent so an account that loses the per-model window stops
-            // showing a stale row.
-            .putFloat("mw_util", s.modelWeekly?.window?.utilization ?: -1f)
-            .putLong("mw_reset", s.modelWeekly?.window?.resetsAtEpochMs ?: 0L)
-            .putString("mw_name", s.modelWeekly?.modelName.orEmpty())
-            .putLong("fetched_at", s.fetchedAtEpochMs)
-            .apply()
+    fun saveUsage(usage: Collection<ProviderUsage>) {
+        val edit = snapshot.edit()
+        usage.forEach { edit.putString(usageKey(it.provider), it.toJson()) }
+        edit.apply()
     }
+
+    fun clearUsage() {
+        val edit = snapshot.edit()
+        Provider.entries.forEach { edit.remove(usageKey(it)) }
+        edit.apply()
+    }
+
+    private fun usageKey(provider: Provider) = "usage_${provider.orcaKey}"
+
+    // ---- the link to desktop Orca (plain, for the widgets' prompts and the app's status line) ----
+
+    /** How the last attempt to reach desktop Orca ended; widgets prompt for pairing on NEEDS_PAIRING. */
+    var linkState: LinkState
+        get() = LinkState.entries.getOrElse(snapshot.getInt("link_state", 0)) { LinkState.OK }
+        set(v) = snapshot.edit().putInt("link_state", v.ordinal).apply()
+
+    /** Human-readable reason for the last failed attempt, e.g. "can't reach ws://100.x:6768 ...". */
+    var linkDetail: String
+        get() = snapshot.getString("link_detail", "").orEmpty()
+        set(v) = snapshot.edit().putString("link_detail", v).apply()
+
+    /** When the phone last tried / last succeeded to reach desktop Orca, epoch ms; 0 when never. */
+    var linkAttemptAt: Long
+        get() = snapshot.getLong("link_attempt_at", 0L)
+        set(v) = snapshot.edit().putLong("link_attempt_at", v).apply()
+
+    var linkSuccessAt: Long
+        get() = snapshot.getLong("link_success_at", 0L)
+        set(v) = snapshot.edit().putLong("link_success_at", v).apply()
 
     // ---- last watch push (plain, diagnostics for the phone app's status line) ----
     //
@@ -143,6 +147,11 @@ class Storage private constructor(
         set(v) = snapshot.edit().putLong("background_help_ack_at", v).apply()
 
     companion object {
+        private const val KEY_ENDPOINT = "orca_endpoint"
+        private const val KEY_DEVICE_TOKEN = "orca_device_token"
+        private const val KEY_PUBLIC_KEY = "orca_public_key"
+        private const val KEY_PAIRED_DEVICE_ID = "orca_paired_device_id"
+
         @Volatile private var instance: Storage? = null
 
         fun get(context: Context): Storage = instance ?: synchronized(this) {
@@ -161,9 +170,38 @@ class Storage private constructor(
                 EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
             )
             val snapshot = app.getSharedPreferences("claude_usage", Context.MODE_PRIVATE)
+            dropClaudeAiData(secure, snapshot)
             return Storage(secure, snapshot)
+        }
+
+        /**
+         * Builds before the Orca source signed in to claude.ai in a WebView and kept the
+         * session cookie, which is as sensitive as the account password. Nothing reads it
+         * any more, so an upgraded install deletes it - and the old single-provider snapshot
+         * - once, instead of keeping a live credential around for nothing.
+         */
+        private fun dropClaudeAiData(secure: SharedPreferences, snapshot: SharedPreferences) {
+            if (snapshot.getBoolean("claude_ai_data_dropped", false)) return
+            secure.edit()
+                .remove("sessionKey").remove("cf_clearance").remove("user_agent").remove("org_id")
+                .commit()
+            snapshot.edit()
+                .remove("fh_util").remove("fh_reset").remove("wk_util").remove("wk_reset")
+                .remove("mw_util").remove("mw_reset").remove("mw_name")
+                .remove("fetched_at").remove("auth_state")
+                .putBoolean("claude_ai_data_dropped", true)
+                .commit()
         }
     }
 }
 
-enum class AuthState { OK, NEEDS_LOGIN }
+/** How the last attempt to reach desktop Orca ended. */
+enum class LinkState {
+    OK,
+    /** No pairing, or Orca refused this device (revoked / re-keyed): the user must pair. */
+    NEEDS_PAIRING,
+    /** Desktop Orca could not be reached (computer off, Orca closed, no Tailscale). */
+    UNREACHABLE,
+    /** Reached Orca but the call failed (timeout, protocol, RPC error). */
+    FAILED,
+}

@@ -85,6 +85,11 @@ android {
     kotlinOptions { jvmTarget = "17" }
 
     buildFeatures { compose = true }
+
+    // android.util.Log (used by OrcaClient) is a throwing stub in JVM unit tests; let such
+    // stubs return defaults instead. org.json is NOT left to the stubs - see the real
+    // implementation added as a test dependency below.
+    testOptions { unitTests.isReturnDefaultValues = true }
 }
 
 dependencies {
@@ -106,8 +111,17 @@ dependencies {
     // Background work
     implementation("androidx.work:work-runtime-ktx:2.10.0")
 
-    // Networking
+    // Networking - also the WebSocket client for the desktop Orca link (orca/OrcaClient).
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
+    // Crypto for Orca's E2EE v2 channel: X25519, HSalsa20 and XSalsa20-Poly1305 (NaCl box /
+    // secretbox). Android's platform providers only offer X25519 from API 31 and no XSalsa20
+    // at all, and minSdk is 26, so the lightweight Bouncy Castle API supplies them.
+    implementation("org.bouncycastle:bcprov-jdk18on:1.79")
+
+    // Scans the pairing QR that desktop Orca shows (Settings > Mobile). Google's code scanner
+    // runs in Play services' own UI, so the app needs no camera permission of its own.
+    implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
 
     // Encrypted storage
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
@@ -119,4 +133,12 @@ dependencies {
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+
+    // JVM unit tests (app/src/test): the Orca crypto against golden vectors made by Orca's
+    // own TypeScript, the pairing and accounts parsers, and the WebSocket client against a
+    // MockWebServer playing desktop Orca. android.jar only ships stubs of org.json that throw
+    // "not mocked", so the tests get the real implementation.
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20240303")
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
 }
