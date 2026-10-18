@@ -230,9 +230,10 @@ private fun SetupScreen() {
             style = MaterialTheme.typography.titleMedium,
         )
         Text(
-            "On your computer, open Orca → Settings → Mobile and pair a new device. Choose " +
-                "the computer's Tailscale address (100.x.y.z) so the widget also works away " +
-                "from home. Then scan the QR code here, or copy the pairing link and paste it.",
+            "On your computer, open Orca → Settings → Mobile → Pair a phone. Choose LAN and " +
+                "the computer's Tailscale address (100.x.y.z), so the widget also works away " +
+                "from home, and click Generate QR code. Then scan it here, or copy the pairing " +
+                "link and paste it.",
             style = MaterialTheme.typography.bodyMedium,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

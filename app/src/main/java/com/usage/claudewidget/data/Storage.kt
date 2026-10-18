@@ -5,6 +5,9 @@ import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.usage.claudewidget.orca.OrcaPairing
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 
 /**
  * Two-tier storage:
@@ -15,6 +18,19 @@ class Storage private constructor(
     private val secure: SharedPreferences,
     private val snapshot: SharedPreferences,
 ) {
+    /**
+     * Emits whenever the plain snapshot prefs change (usage, link state, watch status) -
+     * which every refresh, pairing and unpairing writes. The widgets recompose from it.
+     *
+     * The listener is held by this flow's closure until the collector goes away:
+     * SharedPreferences keeps only a weak reference to it.
+     */
+    fun snapshotChanges(): Flow<Unit> = callbackFlow {
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> trySend(Unit) }
+        snapshot.registerOnSharedPreferenceChangeListener(listener)
+        awaitClose { snapshot.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
+
     // ---- desktop Orca pairing (encrypted) ----
     //
     // The device token is a bearer credential for this phone's entry in desktop Orca: anyone

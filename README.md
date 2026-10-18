@@ -47,7 +47,7 @@ Then continue with first-run setup below.
 
 ## 👋 First-run setup
 
-1. **On your computer**, open **Orca → Settings → Mobile** and pair a new device. Pick the computer's **Tailscale address** (`100.x.y.z`) so the widgets also work away from home (a Wi-Fi address works only on the same network).
+1. **On your computer**, open **Orca → Settings → Mobile → Pair a phone**. Choose **Connection: LAN** and the computer's **Tailscale address** (`100.x.y.z`) so the widgets also work away from home (a Wi-Fi address works only on the same network), then click **Generate QR code**.
 2. **On the phone**, open the **Claude Usage** app and tap **Scan QR code** (or copy Orca's pairing link and tap **Paste**). Check the **Orca address**, then tap **Save and test**. It prints your Claude, Codex and Cursor numbers; they should match Orca's status bar.
 3. **Let it run in the background — required.** The app opens a *Keep Claude Usage running* prompt (also under **Background settings**); follow both parts. See [Required phone settings](#-required-phone-settings) below.
 4. Long-press your home screen → **Widgets** → **Claude Usage**, and drag on **Claude usage**, **Codex usage** and/or **Cursor usage** — one widget per provider. Resize each however you like. Tap one any time to refresh.

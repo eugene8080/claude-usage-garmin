@@ -37,10 +37,38 @@ class OrcaLiveTest {
         println("accounts.list via ${pairing.endpoint}: ${result.javaClass.simpleName}")
         assertTrue("got $result", result is OrcaCallResult.Ok)
 
-        val accounts = OrcaAccountsParser.parse((result as OrcaCallResult.Ok).result)
+        val snapshot = (result as OrcaCallResult.Ok).result
+        val accounts = OrcaAccountsParser.parse(snapshot)
         Provider.entries.forEach { provider ->
             println(OrcaAccountsParser.summarize(accounts.usage.getValue(provider)))
         }
         println("watch: ${accounts.claudeWatch}")
+
+        // The raw windows behind those rows, to check the mapping against what Orca sent.
+        // Only window fields and status: the blocks' metadata can name credential sources.
+        val rateLimits = (snapshot as JSONObject).getJSONObject("rateLimits")
+        Provider.entries.forEach { provider ->
+            val block = rateLimits.optJSONObject(provider.orcaKey)
+            if (block == null) {
+                println("raw ${provider.orcaKey}: null")
+                return@forEach
+            }
+            val windows = WINDOW_SLOTS.filter { block.has(it) }.joinToString(", ") { slot ->
+                val window = block.optJSONObject(slot)
+                if (window == null) "$slot=null" else "$slot={used=${window.opt("usedPercent")}, " +
+                    "minutes=${window.opt("windowMinutes")}, resetsAt=${window.opt("resetsAt")}}"
+            }
+            val buckets = block.optJSONArray("buckets")?.let { list ->
+                (0 until list.length()).joinToString(", ", " buckets=[", "]") { i ->
+                    val bucket = list.getJSONObject(i)
+                    "${bucket.opt("name")}=${bucket.opt("usedPercent")}"
+                }
+            }.orEmpty()
+            println("raw ${provider.orcaKey}: status=${block.opt("status")} error=${block.opt("error")} $windows$buckets")
+        }
+    }
+
+    private companion object {
+        val WINDOW_SLOTS = listOf("session", "weekly", "fableWeekly", "monthly")
     }
 }

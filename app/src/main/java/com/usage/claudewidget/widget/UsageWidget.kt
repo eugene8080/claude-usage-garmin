@@ -1,6 +1,9 @@
 package com.usage.claudewidget.widget
 
 import android.content.Context
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.glance.GlanceId
 import androidx.glance.GlanceTheme
 import androidx.glance.appwidget.GlanceAppWidget
@@ -11,6 +14,7 @@ import com.usage.claudewidget.data.LinkState
 import com.usage.claudewidget.data.Provider
 import com.usage.claudewidget.data.ProviderStatus
 import com.usage.claudewidget.data.Storage
+import kotlinx.coroutines.flow.runningFold
 import kotlin.math.roundToInt
 
 /**
@@ -28,9 +32,18 @@ abstract class ProviderUsageWidget(private val provider: Provider) : GlanceAppWi
     override val sizeMode = SizeMode.Exact
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
+        val changes = Storage.get(context).snapshotChanges()
+            .runningFold(0) { count, _ -> count + 1 }
         provideContent {
+            // Glance keeps a widget's composition alive for ~45 s after each render, and an
+            // update() that lands in that window does NOT re-run content that reads from
+            // outside Glance's own state - it was seen leaving "Tap to pair with Orca" on
+            // the home screen after a successful pairing. Re-reading Storage on every change
+            // to it makes any write show up, whether or not a session is still running.
+            val version by changes.collectAsState(initial = 0)
+            val state = remember(version) { readState(context) }
             GlanceTheme {
-                UsageWidgetContent(readState(context))
+                UsageWidgetContent(state)
             }
         }
     }

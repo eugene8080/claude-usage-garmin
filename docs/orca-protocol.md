@@ -1,6 +1,6 @@
 # How the widget reads usage from desktop Orca
 
-Updated: 2026-10-18
+Updated: 2026-10-19
 
 The phone app gets Claude, Codex and Cursor usage from **desktop Orca**
 ([onorca.dev](https://www.onorca.dev), source [stablyai/orca](https://github.com/stablyai/orca)).
@@ -28,8 +28,21 @@ numbers and show the amber stale dot once they are over 31 minutes old.
 ## Source of the port
 
 Ported on 2026-10-18 from stablyai/orca @ `1938bd055aedd349d07172056fec6810992d5e0e`, for
-desktop Orca **1.4.224** (the build on PSCAP11). Live check: not yet run. Orca is MIT-licensed
+desktop Orca **1.4.224** (the build on PSCAP11). Orca is MIT-licensed
 (Copyright (c) 2026 Lovecast Inc.).
+
+**Live check, 2026-10-19:** passed against desktop Orca 1.4.224 on PSCAP11, over its Tailscale
+address `ws://100.115.235.106:6768`. Two clients ran it:
+- `OrcaLiveTest` on the JVM;
+- the app on the `claudewidget36` emulator, paired by pasting the code (the emulator reaches the
+  host's Tailscale address).
+
+Handshake, token auth and `accounts.list` all worked first time. What came back:
+- Claude: 5H, 1W and 1W Fable.
+- Codex: only `weekly` (Orca's own block had `session: null`).
+- Cursor: `monthly` plus the "Cursor Models" and "Other Models" buckets.
+
+All three widgets drew those numbers.
 
 | Kotlin | Orca source it follows |
 | --- | --- |
@@ -44,7 +57,8 @@ The server side it talks to: `src/main/runtime/rpc/e2ee-channel.ts` (handshake),
 
 ## Pairing code
 
-Desktop Orca: **Settings → Mobile → pair a new device**. Its QR code is
+Desktop Orca: **Settings → Mobile → Pair a phone**, Connection **LAN**, the Tailscale
+address, **Generate QR code** (wording of Orca 1.4.224). Its QR code is
 `orca://pair?code=<base64url JSON>`. The copy button gives the same link. The JSON (offer
 version 2) is:
 
@@ -53,7 +67,7 @@ version 2) is:
   pairedDeviceId?, scope?, relay?, hostDescriptor? }
 ```
 
-- Each "pair a new device" mints a **new device token**. Desktop Orca reuses a token only
+- Each generated QR code mints a **new device token**. Desktop Orca reuses a token only
   while no device has connected with it yet. So the widget gets its own entry (shown as
   "Mobile <date>"), separate from the Orca phone app, and each can be revoked on its own.
 - The widget dials only `endpoint` and ignores `relay`. In a Relay-only code with no address,
@@ -99,7 +113,7 @@ The widget opens one socket per refresh and closes it.
 | Provider | Windows → widget rows |
 | --- | --- |
 | Claude | `session` → **5H**, `weekly` → **1W**, `fableWeekly` → **1W Fable** (a null reset borrows the weekly one) |
-| Codex | `session` → **5H**, `weekly` → **1W** |
+| Codex | `session` → **5H**, `weekly` → **1W** (on 2026-10-19 Orca sent `session: null`, so only 1W was drawn) |
 | Cursor | `monthly` → **Plan**, `buckets` "Cursor Models" → **Auto**, "Other Models" → **API**, "On-demand" → **On-dem** (first three rows only) |
 
 Each window is `{usedPercent 0–100, windowMinutes, resetsAt (epoch ms | null)}`. `status`

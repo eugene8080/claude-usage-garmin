@@ -1,6 +1,7 @@
 package com.usage.claudewidget.data
 
 import org.json.JSONObject
+import kotlin.math.roundToInt
 
 /**
  * Reads the result of desktop Orca's `accounts.list` RPC (Orca's `AccountsSnapshot`, from
@@ -159,7 +160,8 @@ object OrcaAccountsParser {
     fun summarize(usage: ProviderUsage): String = buildString {
         append(usage.provider.displayName).append(": ")
         when {
-            usage.hasData -> append(usage.meters.joinToString(" · ") { "${it.label} ${it.utilization.toInt()}%" })
+            // Rounded like the widget's own figures, so the app and the widget agree.
+            usage.hasData -> append(usage.meters.joinToString(" · ") { "${it.label} ${it.utilization.roundToInt()}%" })
             usage.status == ProviderStatus.NOT_SET_UP -> append("not set up in Orca")
             usage.status == ProviderStatus.UNAVAILABLE -> append("unavailable in Orca")
             usage.status == ProviderStatus.PENDING -> append("waiting for Orca's first fetch")
