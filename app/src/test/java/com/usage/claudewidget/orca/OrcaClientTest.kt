@@ -13,6 +13,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.io.IOException
 import java.net.ServerSocket
 import java.util.Base64
 import java.util.Collections
@@ -35,7 +36,17 @@ class OrcaClientTest {
     }
 
     @After fun tearDown() {
-        server.shutdown()
+        // MockWebServer.shutdown() waits ~5 s for its connection threads and throws
+        // IOException if one is still busy. A WebSocket's server-side thread can outlive the
+        // client's cancel() on a slow runner - CI failed PR #50's build on exactly that, in
+        // this cleanup, after every assertion had passed. The client's behaviour is what these
+        // tests check; a slow shutdown of the fake server is not a result, so it is ignored.
+        // (A server-side OkHttp WebSocket cannot be cancel()ed to hurry it: it has no Call.)
+        try {
+            server.shutdown()
+        } catch (e: IOException) {
+            println("MockWebServer shutdown was slow: ${e.message}")
+        }
     }
 
     private fun pairing(publicKey: ByteArray = desktopKeys.publicKey) = OrcaPairing(
@@ -178,5 +189,11 @@ class OrcaClientTest {
         }
 
         override fun onOpen(webSocket: WebSocket, response: Response) = Unit
+
+        // Answer the client's close frame, as Orca's server (the ws library) does, so a
+        // close that arrives before the client's cancel() finishes the socket cleanly.
+        override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+            webSocket.close(code, null)
+        }
     }
 }
