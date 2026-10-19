@@ -1,6 +1,6 @@
 # Usage Grid widget editor
 
-Updated: 2026-10-19
+Updated: 2026-10-20
 
 **Built:** Eugene's design (second round, emailed 2026-10-19: 1445 / WED / NOV06 resets, larger text) is in [`usage-grid-design.jsonc`](usage-grid-design.jsonc), and
 the app draws it from `GridDesign` in `app/src/main/java/com/usage/claudewidget/widget/UsageGridGlanceUi.kt`
@@ -19,6 +19,14 @@ A self-contained page for designing the planned fourth home-screen widget, the 2
 
 Open **`usage-grid-editor.html`** in any browser. Its only external requests are Google Fonts,
 which supply the preview samples.
+- `monospace`, the font the grid uses, is Android's own `DroidSansMono.ttf`, embedded in the page,
+  so the preview has the phone's glyphs and widths. Until 2026-10-20 the preview used Google's
+  Noto Sans Mono as a stand-in, which has a different zero and other glyph shapes.
+- Text sizes are dp, the same as box sizes. The phone's font-size setting does not change them.
+- The preview fits text the way the phone does. A label may run into the gap before the first
+  box. A number may use the box plus half the halo on each side, because a digit's ink is
+  narrower than its advance. A reset runs from the last box to the padding edge. Text gets
+  smaller only when it is wider than that space: today only "100" does.
 
 ## Only native options
 

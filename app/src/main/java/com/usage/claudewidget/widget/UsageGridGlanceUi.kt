@@ -1,6 +1,10 @@
 package com.usage.claudewidget.widget
 
 import android.content.Intent
+import android.graphics.Paint
+import android.graphics.Typeface
+import android.util.TypedValue
+import android.widget.RemoteViews
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
@@ -13,6 +17,7 @@ import androidx.glance.ImageProvider
 import androidx.glance.LocalContext
 import androidx.glance.LocalSize
 import androidx.glance.action.clickable
+import androidx.glance.appwidget.AndroidRemoteViews
 import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.cornerRadius
@@ -22,14 +27,12 @@ import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.ContentScale
 import androidx.glance.layout.Row
-import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.padding
 import androidx.glance.layout.size
 import androidx.glance.layout.width
 import androidx.glance.text.FontFamily
-import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
@@ -44,13 +47,16 @@ import kotlin.math.pow
  * The usage grid's design, exactly as Eugene set it in docs/widget-editor/usage-grid-editor.html
  * (2026-10-19, second round emailed the same day; the block is kept in
  * docs/widget-editor/usage-grid-design.jsonc). Lengths
- * are dp and text sp at the design size [W] x [H]; the widget scales all of them by one factor
+ * and text sizes are dp at the design size [W] x [H]; the widget scales all of them by one factor
  * to the real 2x1 cell, so the proportions survive any launcher grid.
  *
  * Everything here is drawn natively by Glance - no picture of the widget: boxes are Box views
  * with background colours and corner radii, the halo is a translucent outer Box, the gloss and
  * bevel are one fixed vector drawable (grid_box_overlay), and the font is Android's built-in
- * `monospace` family.
+ * `monospace` family (Droid Sans Mono).
+ *
+ * Text sizes are dp, like every other length (see [GridText]): the design is a fixed picture of
+ * boxes and text, so the phone's font-size setting must not change one without the other.
  */
 internal object GridDesign {
     const val W = 182f
@@ -74,6 +80,24 @@ internal object GridDesign {
     val HALO = min(1f, min(GAP_X, GAP_Y) / 2f)
     const val HALO_ALPHA = 0.25f
 
+    /*
+     * The width each text may take, in design dp; [GridTextFit] steps a size down only when the
+     * text would not fit. Laid out as in GridRow and GridCell.
+     */
+    /** Label: its column plus the gap up to the first box's halo, less 0.3 dp for pixel rounding. */
+    val LABEL_ROOM = LABEL_W + (LABEL_GAP - HALO).coerceAtLeast(0f) - 0.3f
+
+    /**
+     * Number: the box plus half the halo ring on each side. A digit's ink is narrower than its
+     * advance (Droid Sans Mono, measured with fontTools: "45" at 8.7 is 10.44 dp of advance and
+     * 9.44 dp of ink; "100", stepped down to 6.28, is 10.16 dp of ink), so this keeps the ink
+     * inside the 10.4 dp box while letting two digits use the full design size.
+     */
+    val NUM_ROOM = BOX + HALO
+
+    /** Reset: from the last box's halo to the right padding edge, less 1 dp. */
+    val RESET_ROOM = W - 2 * PAD_X - LABEL_W - LABEL_GAP - (10 * BOX + 9 * GAP_X) - HALO - 1f
+
     const val BG = 0xFF000000.toInt()
     const val DIM = 0xFF1E1E1E.toInt()
     const val LABEL = 0xFF94EDFF.toInt()
@@ -81,7 +105,10 @@ internal object GridDesign {
     const val INK_DARK = 0xFFD4D4D4.toInt()
     const val INK_LIGHT = 0xFFC4C4C4.toInt()
 
-    /** Advance of every glyph in Android's `monospace` (Droid Sans Mono), in em. */
+    /**
+     * Advance of every glyph in Android's `monospace` (Droid Sans Mono: 1229/2048 em). Only a
+     * fallback: [GridTextFit] measures the phone's own font, and uses this where it can't.
+     */
     const val MONO_ADVANCE = 0.6f
     const val INK_ZERO = 0xFF2F6B78.toInt()
 
@@ -116,11 +143,9 @@ data class GridState(
 fun UsageGridContent(state: GridState) {
     val context = LocalContext.current
     val size = LocalSize.current
-    // One factor for every length, from the real cell to the design size. Text is divided by
-    // the user's font scale too: the numbers must fit their boxes, which do not grow with it.
+    // One factor for every length, text included, from the real cell to the design size.
     val k = min(size.width.value / GridDesign.W, size.height.value / GridDesign.H).coerceAtLeast(0.3f)
-    val fontScale = context.resources.configuration.fontScale.takeIf { it > 0f } ?: 1f
-    val dims = Dims(k, fontScale)
+    val dims = Dims(k)
 
     val tap = if (state.notice?.opensApp == true) {
         actionStartActivity(Intent(context, MainActivity::class.java))
@@ -161,10 +186,15 @@ fun UsageGridContent(state: GridState) {
     }
 }
 
-/** dp / sp at the design size, scaled to the real widget. */
-private class Dims(val k: Float, val fontScale: Float) {
+/** Lengths at the design size, scaled to the real widget. */
+private class Dims(val k: Float) {
     fun dp(v: Float): Dp = (v * k).dp
-    fun sp(v: Float): TextUnit = (v * k / fontScale).sp
+
+    /** A grid text size, in dp, for [GridText]. */
+    fun textDp(v: Float): Float = v * k
+
+    /** Only the pairing notice uses Glance's own (sp) text: it wraps, and may grow with the phone's font size. */
+    fun sp(v: Float): TextUnit = (v * k).sp
 
     /** The halo sits in the gap, so a cell is the box plus a ring on every side. */
     val cell: Dp get() = dp(GridDesign.BOX + 2 * GridDesign.HALO)
@@ -179,19 +209,16 @@ private fun GridRow(row: GridRowState, first: Boolean, d: Dims) {
         modifier = GlanceModifier.fillMaxWidth().padding(top = if (first) 0.dp else d.cellGapY),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
+        // The label's view spans its column AND the gap up to the first box's halo (the halo
+        // ring takes the first part of the design's gap), so a label a hair wider than its
+        // column still fits; it is left-aligned, so it sits where the design puts it.
+        GridText(
             row.label,
-            style = TextStyle(
-                color = ColorProvider(Color(GridDesign.LABEL)),
-                fontSize = d.sp(GridDesign.S_LABEL),
-                fontFamily = GridDesign.FONT,
-                fontWeight = FontWeight.Normal,
-            ),
-            maxLines = 1,
-            modifier = GlanceModifier.width(d.dp(GridDesign.LABEL_W)),
+            d.textDp(GridTextFit.fit(GridDesign.S_LABEL, GridDesign.LABEL_ROOM, GridTextFit.ems(row.label))),
+            GridDesign.LABEL,
+            GridTextAlign.START,
+            GlanceModifier.width(d.dp(GridDesign.LABEL_W + (GridDesign.LABEL_GAP - GridDesign.HALO).coerceAtLeast(0f))),
         )
-        // The design's label gap runs to the box edge; the halo ring takes the first part of it.
-        Spacer(GlanceModifier.width(d.dp((GridDesign.LABEL_GAP - GridDesign.HALO).coerceAtLeast(0f))))
         Row(verticalAlignment = Alignment.CenterVertically) {
             for (j in 0 until 10) {
                 // Exactly ten children: any gap left beside the halo is padding on a wrapper,
@@ -203,18 +230,16 @@ private fun GridRow(row: GridRowState, first: Boolean, d: Dims) {
                 }
             }
         }
-        // The reset time is right-aligned to the padding edge; the spare width goes here.
-        Spacer(GlanceModifier.defaultWeight())
-        Text(
+        // The reset view takes all the spare width and right-aligns its text to the padding
+        // edge. (A weighted Spacer before a wrap-width AndroidRemoteViews got no width at all,
+        // which left the reset against the boxes.)
+        val resetSize = if (row.reset.isTime) GridDesign.S_RESET_TIME else GridDesign.S_RESET
+        GridText(
             row.reset.text,
-            style = TextStyle(
-                color = ColorProvider(Color(GridDesign.RESET)),
-                fontSize = d.sp(if (row.reset.isTime) GridDesign.S_RESET_TIME else GridDesign.S_RESET),
-                fontFamily = GridDesign.FONT,
-                fontWeight = FontWeight.Normal,
-                textAlign = TextAlign.End,
-            ),
-            maxLines = 1,
+            d.textDp(GridTextFit.fit(resetSize, GridDesign.RESET_ROOM, GridTextFit.ems(row.reset.text))),
+            GridDesign.RESET,
+            GridTextAlign.END,
+            GlanceModifier.defaultWeight(),
         )
     }
 }
@@ -254,24 +279,81 @@ private fun GridCell(row: GridRowState, j: Int, d: Dims) {
                     contentScale = ContentScale.FillBounds,
                 )
             }
-            if (landing && pct != null) {
-                val text = pct.toString()
-                Text(
-                    text,
-                    style = TextStyle(
-                        color = ColorProvider(Color(GridColor.ink(pct, fill))),
-                        // Never wider than the box: at 8.7 sp two digits just fill a 10.4 dp
-                        // box, so "100" steps down until it fits (monospace: 0.6 em a glyph).
-                        fontSize = d.sp(min(GridDesign.S_NUM, GridDesign.BOX / (GridDesign.MONO_ADVANCE * text.length))),
-                        fontFamily = GridDesign.FONT,
-                        fontWeight = FontWeight.Normal,
-                        textAlign = TextAlign.Center,
-                    ),
-                    maxLines = 1,
-                )
-            }
+        }
+        if (landing && pct != null) {
+            // On the whole cell, over the box: the number's view may then be wider than the box
+            // (two digits' advance at full size is) while the digits' ink stays inside it. "100"
+            // steps down until it fits NUM_ROOM.
+            val text = pct.toString()
+            GridText(
+                text,
+                d.textDp(GridTextFit.fit(GridDesign.S_NUM, GridDesign.NUM_ROOM, GridTextFit.ems(text))),
+                GridColor.ink(pct, fill),
+                GridTextAlign.CENTER,
+                GlanceModifier.fillMaxSize(),
+            )
         }
     }
+}
+
+private enum class GridTextAlign(val layout: Int) {
+    START(R.layout.grid_text_start),
+    CENTER(R.layout.grid_text_center),
+    END(R.layout.grid_text_end),
+}
+
+/**
+ * One line of grid text: a plain RemoteViews TextView (res/layout/grid_text_*.xml) sized in dp.
+ *
+ * Not Glance's Text, which only takes sp. The launcher converts sp with ITS font-size setting
+ * when it lays the widget out, which need not be the one this process saw when it drew; on
+ * Eugene's phone (2026-10-20) the text came out bigger than designed, so the labels showed as
+ * "…" and two-digit numbers vanished. The emulator shows the same at 130 % font size until the
+ * next redraw. dp is converted with the display density alone, like the boxes.
+ */
+@Composable
+private fun GridText(
+    text: String,
+    sizeDp: Float,
+    color: Int,
+    align: GridTextAlign,
+    modifier: GlanceModifier = GlanceModifier,
+) {
+    val views = RemoteViews(LocalContext.current.packageName, align.layout).apply {
+        setTextViewText(R.id.grid_text, text)
+        setTextColor(R.id.grid_text, color)
+        setTextViewTextSize(R.id.grid_text, TypedValue.COMPLEX_UNIT_DIP, sizeDp)
+    }
+    AndroidRemoteViews(views, modifier)
+}
+
+/**
+ * Fits grid text to its room in the font the launcher draws it with. The app and the launcher
+ * load the same system font files, so a width measured here is the width there.
+ */
+internal object GridTextFit {
+    // Paint is not thread-safe; widgets of the same app can compose on different threads.
+    private val paint by lazy {
+        Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            typeface = Typeface.create("monospace", Typeface.NORMAL)
+            textSize = MEASURE_PX
+        }
+    }
+    private const val MEASURE_PX = 100f
+
+    /**
+     * [text]'s advance width in em in `monospace`. Where Paint can't measure (JVM unit tests,
+     * where android.jar returns 0), Droid Sans Mono's fixed advance stands in.
+     */
+    fun ems(text: String): Float {
+        if (text.isEmpty()) return 0f
+        val measured = runCatching { synchronized(paint) { paint.measureText(text) } / MEASURE_PX }.getOrDefault(0f)
+        return if (measured > 0f) measured else GridDesign.MONO_ADVANCE * text.length
+    }
+
+    /** The largest size up to [desired] at which text [ems] wide fits [room] (sizes and room in design dp). */
+    fun fit(desired: Float, room: Float, ems: Float): Float =
+        if (ems <= 0f || room <= 0f) desired else min(desired, room / ems)
 }
 
 @Composable
