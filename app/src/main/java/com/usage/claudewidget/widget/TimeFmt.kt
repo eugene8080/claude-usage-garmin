@@ -36,6 +36,29 @@ object TimeFmt {
 
     private const val DAY_MS = 86_400_000L
 
+    /** A reset as the usage grid writes it, and whether it is a time (it has its own size). */
+    data class GridReset(val text: String, val isTime: Boolean)
+
+    /**
+     * The usage grid's reset column (Eugene, 2026-10-19): the same distance rule as [resetsAt],
+     * in the grid's own compact style - a time within a day as 24-hour digits with no colon
+     * (`1445`, `0905`, whatever the phone's 12/24-hour setting), a weekday in capitals (`WED`),
+     * a date as month + two-digit day in capitals (`NOV06`). English names, so the style holds
+     * whatever the phone's language.
+     */
+    fun gridReset(resetEpochMs: Long, now: Long = System.currentTimeMillis()): GridReset {
+        if (resetEpochMs <= 0L) return GridReset("-", isTime = false)
+        val diff = resetEpochMs - now
+        if (diff <= 0L) return GridReset("NOW", isTime = false)
+        val (pattern, isTime) = when {
+            diff < DAY_MS -> "HHmm" to true
+            diff < 7 * DAY_MS -> "EEE" to false
+            else -> "MMMdd" to false
+        }
+        val text = SimpleDateFormat(pattern, Locale.ENGLISH).format(Date(resetEpochMs)).uppercase(Locale.ENGLISH)
+        return GridReset(text, isTime)
+    }
+
     /** Snapshot is considered stale once older than ~2 refresh cycles. */
     fun isStale(fetchedAt: Long, now: Long = System.currentTimeMillis()): Boolean {
         if (fetchedAt <= 0L) return true

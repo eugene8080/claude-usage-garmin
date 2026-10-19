@@ -42,7 +42,6 @@ class UsageGridWidget : GlanceAppWidget() {
         val s = Storage.get(context)
         val usage = Provider.entries.associateWith { s.usage(it) }
         val now = System.currentTimeMillis()
-        val is24h = android.text.format.DateFormat.is24HourFormat(context)
         val anyData = usage.values.any { it?.hasData == true }
 
         val notice = when {
@@ -59,7 +58,8 @@ class UsageGridWidget : GlanceAppWidget() {
                 startColor = spec.start,
                 endColor = spec.end,
                 pct = meter?.utilization?.roundToInt()?.coerceIn(0, 100),
-                resets = meter?.let { TimeFmt.resetsAt(it.resetsAtEpochMs, now, is24h) } ?: "",
+                reset = meter?.let { TimeFmt.gridReset(it.resetsAtEpochMs, now) }
+                    ?: TimeFmt.GridReset("", isTime = false),
             )
         }
         // The dot shows when the OLDEST numbers on the grid are past the stale threshold.

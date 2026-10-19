@@ -233,12 +233,12 @@ const WEB_FAMILIES={"Roboto":"Roboto:wght@100;300;400;500;700;900","Roboto Conde
 const COLOUR_KEYS=["claude","claude2","codex","codex2","cursor","cursor2","dim","edge","bg","bg2","label","reset","inkDark","inkLight","inkZero","haloA","haloB"];
 const LOOK_KEYS=["rowGrad","emptyStyle","edgeW","bgGrad","halo","haloMode","haloW","haloAlpha","halo2","haloScale","gloss","bevel","inkMode"];
 
-// Defaults = the design shipped in v2.2 (docs/widget-editor/usage-grid-design.jsonc, Eugene
-// 2026-10-19), plus the right-column formats asked for the same day: the 5H reset as a 24-hour time
-// with no colon (1445) at its own size, weekdays in capitals (WED), dates as NOV06.
+// Defaults = the design built into the widget (docs/widget-editor/usage-grid-design.jsonc, Eugene's
+// second round, 2026-10-19): the 5H reset as a 24-hour time with no colon (1445) at its own size,
+// weekdays in capitals (WED), dates as NOV06, larger text, grey number inks.
 function defaults(){ return {
   theme:"shipped",
-  font:"monospace", wLabel:400, wNum:400, wReset:400, sLabel:7.5, sNum:7, sReset:5.3, sResetTime:5.3,
+  font:"monospace", wLabel:400, wNum:400, wReset:400, sLabel:9.4, sNum:8.7, sReset:8.2, sResetTime:9.3,
   fmtTime:"HHmm", fmtDay:"UPPER", fmtDate:"MMMdd",
   W:182, H:114, size:"custom", rWidget:19, padX:9, padY:8,
   labelW:12, labelGap:3, resetGap:3.5, resetW:22,
@@ -247,7 +247,7 @@ function defaults(){ return {
   rowGrad:true, claude:"#f06000", claude2:"#ffd27a", codex:"#0d6ad3", codex2:"#7fe3ff", cursor:"#9fd8e6", cursor2:"#ffffff",
   emptyStyle:"fill", dim:"#1e1e1e", edge:"#0e4a57", edgeW:1,
   bgGrad:"none", bg:"#000000", bg2:"#0d1220",
-  label:"#94edff", reset:"#94edff", inkDark:"#a9f0fe", inkLight:"#94edff", inkZero:"#2f6b78",
+  label:"#94edff", reset:"#94edff", inkDark:"#d4d4d4", inkLight:"#c4c4c4", inkZero:"#2f6b78",
   halo:true, haloMode:"box", haloA:"#00e5ff", haloB:"#4f7bff", haloW:1, haloAlpha:0.25, halo2:true, haloScale:true,
   gloss:0.5, bevel:0.1,
 }; }
@@ -261,8 +261,8 @@ const FLAT={rowGrad:false,claude:"#d97757",claude2:"#ffb08a",codex:"#6e85ff",cod
 // Techy themes: each keeps the three roles (Claude orange, Codex blue, Cursor grey/white) and varies
 // the shades, the row gradient, the background and the native effects.
 const THEMES=[
-  ["shipped","Shipped (v2.2)",{rowGrad:true,claude:"#f06000",claude2:"#ffd27a",codex:"#0d6ad3",codex2:"#7fe3ff",cursor:"#9fd8e6",cursor2:"#ffffff",
-    edge:"#0e4a57",edgeW:1,label:"#94edff",reset:"#94edff",inkDark:"#a9f0fe",inkLight:"#94edff",inkZero:"#2f6b78",
+  ["shipped","Shipped (current)",{rowGrad:true,claude:"#f06000",claude2:"#ffd27a",codex:"#0d6ad3",codex2:"#7fe3ff",cursor:"#9fd8e6",cursor2:"#ffffff",
+    edge:"#0e4a57",edgeW:1,label:"#94edff",reset:"#94edff",inkDark:"#d4d4d4",inkLight:"#c4c4c4",inkZero:"#2f6b78",
     halo:true,haloMode:"box",haloA:"#00e5ff",haloW:1,haloAlpha:0.25,halo2:true,haloScale:true,gloss:0.5,bevel:0.1}],
   ["flat","Flat (preview v3)",{}],
   ["logo","Gradient: logo colours",{rowGrad:true,claude:"#a94a2a",claude2:"#ffb08a",codex:"#3941ff",codex2:"#b1a7ff",cursor:"#6e6e6e",cursor2:"#f5f5f5"}],
@@ -386,7 +386,10 @@ function draw(){
           if(pct===0) ink=P.inkZero;
           else if(P.inkMode==="light") ink=P.inkLight; else if(P.inkMode==="dark") ink=P.inkDark;
           else ink=contrast(under,P.inkDark)>=contrast(under,P.inkLight)?P.inkDark:P.inkLight;
-          ctx.font=font(P.wNum,String(pct).length>=3?P.sNum*0.86:P.sNum,z); ctx.fillStyle=ink; textMid(String(pct),x+b/2,cy); } } }
+          // Never wider than the box (as on the phone): a number that would overflow steps down to fit.
+          ctx.font=font(P.wNum,P.sNum,z); const tw=ctx.measureText(String(pct)).width;
+          if(tw>b) ctx.font=font(P.wNum,P.sNum*b/tw,z);
+          ctx.fillStyle=ink; textMid(String(pct),x+b/2,cy); } } }
     ctx.font=font(P.wLabel,P.sLabel,z); ctx.fillStyle=P.label; textMid(ROWS[i].label,L.x0*z,cy,"left");
     if(P.showReset){ const r=RESET_SAMPLES[i];
       ctx.font=font(P.wReset,r.t==="time"?P.sResetTime:P.sReset,z); ctx.fillStyle=P.reset; textMid(resetText(r),(P.W-P.padX)*z,cy,"right"); }
