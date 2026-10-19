@@ -166,7 +166,7 @@
 
     <details class="panel" open data-k="settings-paste-back-to-me"><summary><h2>Settings (paste back to me)</h2></summary>
       <textarea id="out" spellcheck="false"></textarea>
-      <button onclick="copyOut()">Copy settings</button><button class="sec" onclick="applyPasted()" title="read the block above back into the editor">Apply pasted</button><button class="sec" onclick="resetAll()">Reset to default</button>
+      <button onclick="copyOut()">Copy settings</button><button onclick="saveFile()" title="download the block as usage-grid-settings.txt - for when a paste gets cut off">Save settings file</button><button class="sec" onclick="applyPasted()" title="read the block above back into the editor">Apply pasted</button><button class="sec" onclick="resetAll()">Reset to default</button>
       <div class="muted" id="status"></div>
     </details>
   </div>
@@ -513,6 +513,13 @@ function syncAll(){
   $("sizePreset").value=SIZE_PRESETS[P.size]?P.size:"custom"; }
 function copyOut(){ const t=$("out"); t.select(); try{ navigator.clipboard.writeText(t.value); }catch(e){ document.execCommand("copy"); }
   $("status").textContent="Copied."; setTimeout(()=>$("status").textContent="",1500); }
+// The whole block as a file in Downloads (usage-grid-settings.txt): a long paste into a terminal can
+// arrive cut off, a file never is.
+function saveFile(){ const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([$("out").value+"
+"],{type:"text/plain"})); a.download="usage-grid-settings.txt";
+  document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1000);
+  $("status").textContent="Saved usage-grid-settings.txt to your Downloads folder."; }
 function applyPasted(){ try{ const s=JSON.parse($("out").value.replace(/^\s*\/\/.*$/gm,""));
     const z=P._zoom; P=Object.assign(defaults(),s); P._zoom=z; syncAll(); setFont(P.font); $("status").textContent="Applied."; }
   catch(e){ $("status").textContent="Could not read that block: "+e.message; } }
