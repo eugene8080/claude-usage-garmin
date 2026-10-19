@@ -2,15 +2,7 @@
 
 Updated: 2026-10-19
 
-**In the editor, not yet on the phone (2026-10-19):** the right-column formats Eugene asked for:
-- the 5H reset as a 24-hour time with no colon (`1445`), at its own size;
-- weekdays in capitals (`WED`);
-- Cursor dates as `NOV06`.
-
-They are the editor defaults (`fmtTime` / `fmtDay` / `fmtDate`, `sResetTime`). The widget gets them once he has
-settled the design and pasted the block back.
-
-**Built:** Eugene's design (2026-10-19) is in [`usage-grid-design.jsonc`](usage-grid-design.jsonc), and
+**Built:** Eugene's design (second round, emailed 2026-10-19: 1445 / WED / NOV06 resets, larger text) is in [`usage-grid-design.jsonc`](usage-grid-design.jsonc), and
 the app draws it from `GridDesign` in `app/src/main/java/com/usage/claudewidget/widget/UsageGridGlanceUi.kt`
 (gloss and bevel in `res/drawable/grid_box_overlay.xml`). To change the design:
 1. Paste the `.jsonc` block into the editor and press **Apply pasted**.

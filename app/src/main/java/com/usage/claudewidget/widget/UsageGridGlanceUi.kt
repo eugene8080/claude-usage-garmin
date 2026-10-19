@@ -42,7 +42,8 @@ import kotlin.math.pow
 
 /**
  * The usage grid's design, exactly as Eugene set it in docs/widget-editor/usage-grid-editor.html
- * (2026-10-19; the pasted block is kept in docs/widget-editor/usage-grid-design.jsonc). Lengths
+ * (2026-10-19, second round emailed the same day; the block is kept in
+ * docs/widget-editor/usage-grid-design.jsonc). Lengths
  * are dp and text sp at the design size [W] x [H]; the widget scales all of them by one factor
  * to the real 2x1 cell, so the proportions survive any launcher grid.
  *
@@ -62,9 +63,12 @@ internal object GridDesign {
     const val R_BOX = 3.8f
     const val GAP_X = 1.8f
     const val GAP_Y = 4.3f
-    const val S_LABEL = 7.5f
-    const val S_NUM = 7f
-    const val S_RESET = 5.3f
+    const val S_LABEL = 9.4f
+    const val S_NUM = 8.7f
+    /** Weekday and date resets (WED, NOV06). */
+    const val S_RESET = 8.2f
+    /** The time reset (1445) - sized on its own. */
+    const val S_RESET_TIME = 9.3f
 
     /** Halo ring: 1 dp asked, capped at half the smaller gap (it lives in the gap) = 0.9 dp. */
     val HALO = min(1f, min(GAP_X, GAP_Y) / 2f)
@@ -74,8 +78,11 @@ internal object GridDesign {
     const val DIM = 0xFF1E1E1E.toInt()
     const val LABEL = 0xFF94EDFF.toInt()
     const val RESET = 0xFF94EDFF.toInt()
-    const val INK_DARK = 0xFFA9F0FE.toInt()
-    const val INK_LIGHT = 0xFF94EDFF.toInt()
+    const val INK_DARK = 0xFFD4D4D4.toInt()
+    const val INK_LIGHT = 0xFFC4C4C4.toInt()
+
+    /** Advance of every glyph in Android's `monospace` (Droid Sans Mono), in em. */
+    const val MONO_ADVANCE = 0.6f
     const val INK_ZERO = 0xFF2F6B78.toInt()
 
     /** Row gradients, box 1 -> box 10. */
@@ -96,7 +103,7 @@ data class GridRowState(
     val startColor: Int,
     val endColor: Int,
     val pct: Int?,
-    val resets: String,
+    val reset: TimeFmt.GridReset,
 )
 
 data class GridState(
@@ -199,10 +206,10 @@ private fun GridRow(row: GridRowState, first: Boolean, d: Dims) {
         // The reset time is right-aligned to the padding edge; the spare width goes here.
         Spacer(GlanceModifier.defaultWeight())
         Text(
-            row.resets,
+            row.reset.text,
             style = TextStyle(
                 color = ColorProvider(Color(GridDesign.RESET)),
-                fontSize = d.sp(GridDesign.S_RESET),
+                fontSize = d.sp(if (row.reset.isTime) GridDesign.S_RESET_TIME else GridDesign.S_RESET),
                 fontFamily = GridDesign.FONT,
                 fontWeight = FontWeight.Normal,
                 textAlign = TextAlign.End,
@@ -253,8 +260,9 @@ private fun GridCell(row: GridRowState, j: Int, d: Dims) {
                     text,
                     style = TextStyle(
                         color = ColorProvider(Color(GridColor.ink(pct, fill))),
-                        // Three digits ("100") would overflow the box at the two-digit size.
-                        fontSize = d.sp(if (text.length >= 3) GridDesign.S_NUM * 0.78f else GridDesign.S_NUM),
+                        // Never wider than the box: at 8.7 sp two digits just fill a 10.4 dp
+                        // box, so "100" steps down until it fits (monospace: 0.6 em a glyph).
+                        fontSize = d.sp(min(GridDesign.S_NUM, GridDesign.BOX / (GridDesign.MONO_ADVANCE * text.length))),
                         fontFamily = GridDesign.FONT,
                         fontWeight = FontWeight.Normal,
                         textAlign = TextAlign.Center,
