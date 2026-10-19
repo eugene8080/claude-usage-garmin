@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Usage Grid - editor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<style>
+  /* Same look as garmin/faces/grid/editor/claude-grid-editor.html. */
+  body{margin:0;background:#141414;color:#ddd;font-family:ui-sans-serif,Segoe UI,Roboto,sans-serif;display:flex;gap:22px;padding:18px;flex-wrap:wrap;}
+  h1{font-size:15px;color:#F2A98C;margin:0 0 4px;} p.hint{color:#8a8a8a;font-size:12px;margin:0 0 10px;max-width:560px;line-height:1.5;}
+  .stage{flex:0 1 auto;min-width:0;max-width:600px;}
+  #wrap{border-radius:14px;overflow:hidden;display:inline-block;box-shadow:0 0 0 1px #2a2a2a;max-width:100%;}
+  canvas{display:block;max-width:100%;}
+  .side{flex:1 1 360px;min-width:330px;max-width:470px;}
+  .panel{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:12px 15px;margin-bottom:12px;}
+  .panel h2{font-size:13px;color:#E95625;margin:0 0 10px;text-transform:uppercase;letter-spacing:.5px;}
+  .row{display:flex;align-items:center;gap:10px;margin:7px 0;font-size:12.5px;color:#bbb;}
+  .row label{flex:0 0 112px;color:#999;} .row input[type=range]{flex:1;min-width:60px;}
+  .row .val{flex:0 0 46px;text-align:right;color:#F2A98C;font-family:ui-monospace,monospace;}
+  select,input[type=color]{background:#0c0c0c;color:#ddd;border:1px solid #333;border-radius:6px;padding:4px;font-family:inherit;font-size:12.5px;} select{flex:1;min-width:0;}
+  input[type=color]{width:44px;height:28px;padding:2px;}
+  input.hex{width:78px;background:#0c0c0c;color:#ddd;border:1px solid #333;border-radius:6px;padding:4px;font-family:ui-monospace,monospace;font-size:12px;}
+  .pair{display:flex;gap:6px;align-items:center;flex:1;} .pair .arrow{color:#666;}
+  button{background:#E95625;color:#111;border:0;border-radius:8px;padding:8px 14px;font-family:inherit;font-weight:bold;cursor:pointer;margin:6px 8px 0 0;} button.sec{background:#333;color:#ddd;}
+  textarea{width:100%;box-sizing:border-box;height:190px;background:#0c0c0c;border:1px solid #333;border-radius:8px;padding:10px;font-family:ui-monospace,monospace;font-size:11.5px;color:#bfe7d8;}
+  .muted{color:#666;font-size:11.5px;line-height:1.45;} .chk{display:flex;gap:7px;align-items:center;}
+  .chk label{flex:0 0 auto !important;}
+  .warn{color:#ffb454;font-size:11.5px;margin:6px 0;min-height:14px;max-width:560px;}
+  .sub{font-size:11px;color:#777;text-transform:uppercase;letter-spacing:.4px;margin:12px 0 2px;}
+  table.fonts{border-collapse:collapse;width:100%;font-size:12px;} table.fonts td{padding:3px 4px;border-top:1px solid #242424;color:#bbb;vertical-align:middle;}
+  table.fonts td.k{font-family:ui-monospace,monospace;color:#8fb7ff;font-size:11px;white-space:nowrap;} table.fonts td.s{font-size:15px;color:#eee;}
+</style></head>
+<body>
+  <div class="stage">
+    <h1>Usage Grid - widget editor</h1>
+    <p class="hint">Design the 2&times;1 <b>usage grid</b> widget: 7 rows (Claude 5H / 1W / FA, Codex 1W, Cursor PL / AU / AP)
+      &times; 10 boxes, each 10&nbsp;%. The box a percentage lands in is shaded by how far into its band it is and carries the
+      number; the right column is each row's reset time. <b>Everything here is drawn natively by the widget</b> - plain
+      boxes, colours, Android's own fonts, rounded corners, and fixed drawables for the gradients, gloss and bevel - no
+      picture of the widget. Sizes are dp / sp at the <b>zoom</b> below. <b>Theme</b> sets the colours and effects at once;
+      editing one switches to <b>Custom</b>. <b>Copy settings</b> and paste the block back to me.</p>
+    <div id="wrap"><canvas id="c"></canvas></div>
+    <div class="warn" id="warn"></div>
+    <div class="row"><label>Zoom</label><input type="range" id="zoom" min="1" max="6" step="0.25"><span class="val" id="zoomV"></span></div>
+    <div class="row chk"><input type="checkbox" id="backdrop" checked><label for="backdrop">Home-screen backdrop</label>
+      <input type="checkbox" id="outline" style="margin-left:18px"><label for="outline">Show layout guides</label></div>
+    <div class="panel">
+      <h2>Preview data</h2>
+      <div class="row"><label>Sample</label><select id="sampleSel">
+        <option value="today">Today's numbers from Orca</option>
+        <option value="busy">Busier day (61 / 69 / 5 / 34 / 55 / 97 / 18)</option>
+        <option value="edges">Edge cases (0 / 5 / 60 / 61 / 69 / 97 / 100)</option>
+        <option value="full">All 100 %</option>
+        <option value="empty">All 0 %</option>
+      </select></div>
+      <div id="pctRows"></div>
+      <div class="row chk"><input type="checkbox" id="h24"><label for="h24">24-hour reset times</label></div>
+      <div class="muted">Preview only - not part of the settings block.</div>
+    </div>
+    <div class="panel">
+      <h2>Fonts the widget can use</h2>
+      <div class="muted" style="margin-bottom:6px">A home-screen widget can't load its own fonts unless it is drawn as a picture, so it uses
+        Android's built-in families, in three weights: Normal, Medium, Bold. The samples below use the same typefaces from
+        Google Fonts. <b>Brand phones can swap the default sans</b>: on ColorOS (Oppo) <code>sans-serif</code> may come out in OPPO Sans.</div>
+      <table class="fonts" id="fontTable"></table>
+    </div>
+  </div>
+
+  <div class="side">
+    <div class="panel">
+      <h2>Theme &amp; box colours</h2>
+      <div class="row"><label title="sets every colour and effect at once; editing any of them switches to Custom">Theme</label><select id="themeSel"></select></div>
+      <div class="row chk"><input type="checkbox" id="rowGrad"><label for="rowGrad" title="each lit box gets its own colour, from the row's start colour (box 1) to its end colour (box 10)">Gradient across the 10 boxes</label></div>
+      <div class="row"><label>Claude</label><div class="pair"><input type="color" id="cClaude"><input type="text" id="cClaudeH" class="hex"><span class="arrow">&rarr;</span><input type="color" id="cClaude2"><input type="text" id="cClaude2H" class="hex"></div></div>
+      <div class="row"><label>Codex</label><div class="pair"><input type="color" id="cCodex"><input type="text" id="cCodexH" class="hex"><span class="arrow">&rarr;</span><input type="color" id="cCodex2"><input type="text" id="cCodex2H" class="hex"></div></div>
+      <div class="row"><label>Cursor</label><div class="pair"><input type="color" id="cCursor"><input type="text" id="cCursorH" class="hex"><span class="arrow">&rarr;</span><input type="color" id="cCursor2"><input type="text" id="cCursor2H" class="hex"></div></div>
+      <div class="muted">Left = box 1 (and the whole row when the gradient is off); right = box 10.</div>
+      <div class="sub">Unused boxes</div>
+      <div class="row"><label>Style</label><select id="emptyStyle"><option value="fill">Filled</option><option value="outline">Outline only</option><option value="both">Filled + outline</option></select></div>
+      <div class="row"><label title="unused boxes: faintly visible on the background">Dimmed fill</label><input type="color" id="cDim"><input type="text" id="cDimH" class="hex"></div>
+      <div class="row"><label>Outline</label><input type="color" id="cEdge"><input type="text" id="cEdgeH" class="hex"></div>
+      <div class="row"><label>Outline width</label><input type="range" id="edgeW" min="0.25" max="2" step="0.25"><span class="val" id="edgeWV"></span></div>
+    </div>
+
+    <div class="panel">
+      <h2>Halo (native glow)</h2>
+      <div class="muted" style="margin-bottom:4px">A widget can't blur, so the glow is a translucent ring around each lit box (one or two
+        rings, softer outside). It lives in the gap between boxes, so it is at most half the gap wide.</div>
+      <div class="row chk"><input type="checkbox" id="halo"><label for="halo">Halo around lit boxes</label></div>
+      <div class="row"><label>Colour from</label><select id="haloMode">
+        <option value="box">Each box's own colour</option>
+        <option value="single">One colour (A)</option>
+        <option value="row">Gradient across each row (A &rarr; B)</option>
+        <option value="col">Gradient down the grid (A &rarr; B)</option></select></div>
+      <div class="row"><label>Halo A</label><input type="color" id="cHaloA"><input type="text" id="cHaloAH" class="hex"></div>
+      <div class="row"><label>Halo B</label><input type="color" id="cHaloB"><input type="text" id="cHaloBH" class="hex"></div>
+      <div class="row"><label title="ring width, dp (capped at half the gap)">Ring width</label><input type="range" id="haloW" min="0.25" max="4" step="0.25"><span class="val" id="haloWV"></span></div>
+      <div class="row"><label>Opacity</label><input type="range" id="haloAlpha" min="0" max="1" step="0.05"><span class="val" id="haloAlphaV"></span></div>
+      <div class="row chk"><input type="checkbox" id="halo2"><label for="halo2">Second, softer ring outside</label></div>
+      <div class="row chk"><input type="checkbox" id="haloScale"><label for="haloScale">Graded box's halo follows its fill</label></div>
+    </div>
+
+    <div class="panel">
+      <h2>Box finish</h2>
+      <div class="row chk"><input type="checkbox" id="boxAuto"><label for="boxAuto">Size boxes to fit the widget</label></div>
+      <div class="row"><label title="used when 'fit' is off">Box size</label><input type="range" id="box" min="4" max="24" step="0.1"><span class="val" id="boxV"></span></div>
+      <div class="row"><label title="corner radius of each box, dp (needs Android 12+)">Corner radius</label><input type="range" id="rBox" min="0" max="8" step="0.1"><span class="val" id="rBoxV"></span></div>
+      <div class="row"><label title="soft white highlight over the top half of each lit box (a fixed drawable)">Gloss</label><input type="range" id="gloss" min="0" max="1" step="0.05"><span class="val" id="glossV"></span></div>
+      <div class="row"><label title="3D edge: light top-left, dark bottom-right (a fixed drawable)">Bevel (3D edge)</label><input type="range" id="bevel" min="0" max="1" step="0.05"><span class="val" id="bevelV"></span></div>
+      <div class="row"><label title="gap between boxes in a row, dp">Gap across</label><input type="range" id="gapX" min="0" max="8" step="0.1"><span class="val" id="gapXV"></span></div>
+      <div class="row"><label title="gap between rows, dp">Gap down</label><input type="range" id="gapY" min="0" max="8" step="0.1"><span class="val" id="gapYV"></span></div>
+    </div>
+
+    <div class="panel">
+      <h2>Background &amp; text colours</h2>
+      <div class="row"><label>Background</label><select id="bgGrad"><option value="none">Solid</option><option value="down">Gradient top &rarr; bottom</option><option value="diag">Gradient diagonal</option><option value="across">Gradient left &rarr; right</option></select></div>
+      <div class="row"><label>Colours</label><div class="pair"><input type="color" id="cBg"><input type="text" id="cBgH" class="hex"><span class="arrow">&rarr;</span><input type="color" id="cBg2"><input type="text" id="cBg2H" class="hex"></div></div>
+      <div class="row"><label>Labels</label><input type="color" id="cLabel"><input type="text" id="cLabelH" class="hex"></div>
+      <div class="row"><label>Reset times</label><input type="color" id="cReset"><input type="text" id="cResetH" class="hex"></div>
+      <div class="row"><label title="number on a bright box">Number (dark)</label><input type="color" id="cInkD"><input type="text" id="cInkDH" class="hex"></div>
+      <div class="row"><label title="number on a dark or faint box">Number (light)</label><input type="color" id="cInkL"><input type="text" id="cInkLH" class="hex"></div>
+      <div class="row"><label title="the 0 shown in box 1 of an unused row">Zero "0"</label><input type="color" id="cInkZ"><input type="text" id="cInkZH" class="hex"></div>
+      <div class="row"><label>Number colour</label><select id="inkMode">
+        <option value="auto">Auto: dark or light, whichever contrasts more</option>
+        <option value="light">Always light</option><option value="dark">Always dark</option></select></div>
+    </div>
+
+    <div class="panel">
+      <h2>Text</h2>
+      <div class="row"><label style="flex:0 0 40px">Font</label><select id="fontSel"></select></div>
+      <div class="row"><label>Label size</label><input type="range" id="sLabel" min="3" max="14" step="0.1"><span class="val" id="sLabelV"></span></div>
+      <div class="row"><label>Label weight</label><select id="wLabel"></select></div>
+      <div class="row"><label>Number size</label><input type="range" id="sNum" min="2.5" max="12" step="0.1"><span class="val" id="sNumV"></span></div>
+      <div class="row"><label>Number weight</label><select id="wNum"></select></div>
+      <div class="row"><label>Reset size</label><input type="range" id="sReset" min="3" max="12" step="0.1"><span class="val" id="sResetV"></span></div>
+      <div class="row"><label>Reset weight</label><select id="wReset"></select></div>
+      <div class="row chk"><input type="checkbox" id="showNums"><label for="showNums">Number in the box it lands in</label></div>
+      <div class="row chk"><input type="checkbox" id="showReset"><label for="showReset">Reset-time column</label></div>
+    </div>
+
+    <div class="panel">
+      <h2>Size &amp; spacing</h2>
+      <div class="row"><label>Widget</label><select id="sizePreset">
+        <option value="gh">GitHub-widget shape (180 &times; 114 dp)</option>
+        <option value="pixel">Pixel-class 2&times;1 (178 &times; 104 dp)</option>
+        <option value="fold">Foldable inner 2&times;1 (230 &times; 150 dp)</option>
+        <option value="custom">Custom</option></select></div>
+      <div class="row"><label>Width</label><input type="range" id="W" min="120" max="320" step="1"><span class="val" id="WV"></span></div>
+      <div class="row"><label>Height</label><input type="range" id="H" min="60" max="220" step="1"><span class="val" id="HV"></span></div>
+      <div class="row"><label>Widget corners</label><input type="range" id="rWidget" min="0" max="40" step="0.5"><span class="val" id="rWidgetV"></span></div>
+      <div class="row"><label title="left and right padding, dp">Padding across</label><input type="range" id="padX" min="0" max="30" step="0.5"><span class="val" id="padXV"></span></div>
+      <div class="row"><label title="minimum top and bottom padding, dp (the grid is centred)">Padding down</label><input type="range" id="padY" min="0" max="30" step="0.5"><span class="val" id="padYV"></span></div>
+      <div class="row"><label>Label column</label><input type="range" id="labelW" min="0" max="30" step="0.5"><span class="val" id="labelWV"></span></div>
+      <div class="row"><label>Label &rarr; boxes</label><input type="range" id="labelGap" min="0" max="15" step="0.5"><span class="val" id="labelGapV"></span></div>
+      <div class="row"><label>Boxes &rarr; reset</label><input type="range" id="resetGap" min="0" max="15" step="0.5"><span class="val" id="resetGapV"></span></div>
+      <div class="row"><label>Reset column</label><input type="range" id="resetW" min="8" max="50" step="0.5"><span class="val" id="resetWV"></span></div>
+    </div>
+
+    <div class="panel">
+      <h2>Settings (paste back to me)</h2>
+      <textarea id="out" spellcheck="false"></textarea>
+      <button onclick="copyOut()">Copy settings</button><button class="sec" onclick="applyPasted()" title="read the block above back into the editor">Apply pasted</button><button class="sec" onclick="resetAll()">Reset to default</button>
+      <div class="muted" id="status"></div>
+    </div>
+  </div>
+
+<script>
+"use strict";
+// ---------------------------------------------------------------------------------------------
+// Model. Lengths in dp, text in sp - the units the Android widget is laid out in. Every option is
+// something a Glance (RemoteViews) widget can draw itself: Box backgrounds in any colour, corner
+// radii, nested boxes for rings and outlines, Android's system font families in Normal / Medium /
+// Bold, and fixed drawable resources (gradient backgrounds, gloss, bevel) baked from these settings
+// when the widget is built. No blur and no bundled fonts: those need the widget drawn as a picture.
+// ---------------------------------------------------------------------------------------------
+const ROWS=[
+  {label:"5H",prov:"claude",name:"Claude 5-hour"},{label:"1W",prov:"claude",name:"Claude weekly"},
+  {label:"FA",prov:"claude",name:"Claude Fable weekly"},{label:"1W",prov:"codex",name:"Codex weekly"},
+  {label:"PL",prov:"cursor",name:"Cursor plan"},{label:"AU",prov:"cursor",name:"Cursor Auto"},
+  {label:"AP",prov:"cursor",name:"Cursor API"}];
+const SAMPLES={
+  today:[20,36,0,3,2,2,0], busy:[61,69,5,34,55,97,18], edges:[0,5,60,61,69,97,100],
+  full:[100,100,100,100,100,100,100], empty:[0,0,0,0,0,0,0]};
+// Reset labels as the widget formats them (TimeFmt.resetsAt).
+const RESETS12=["3:39 AM","Wed","Wed","Sun","Nov 6","Nov 6","Nov 6"], RESETS24=["3:39","Wed","Wed","Sun","Nov 6","Nov 6","Nov 6"];
+const SIZE_PRESETS={gh:[180,114],pixel:[178,104],fold:[230,150]};
+
+// Android's built-in font families (AOSP /system/etc/fonts.xml, checked on the Android 16 emulator
+// image 2026-10-19; roboto-flex and source-sans-pro are only on recent releases) - the names a widget can ask for
+// with Glance's FontFamily("..."). `web` is the same typeface on Google Fonts for this preview and
+// `base` its own weight, which Normal keeps and Medium / Bold raise.
+const FONTS=[
+  {k:"sans-serif",name:"Roboto (default sans)",web:"Roboto",base:400},
+  {k:"sans-serif-thin",name:"Roboto Thin",web:"Roboto",base:100},
+  {k:"sans-serif-light",name:"Roboto Light",web:"Roboto",base:300},
+  {k:"sans-serif-medium",name:"Roboto Medium",web:"Roboto",base:500},
+  {k:"sans-serif-black",name:"Roboto Black",web:"Roboto",base:900},
+  {k:"sans-serif-condensed",name:"Roboto Condensed",web:"Roboto Condensed",base:400},
+  {k:"sans-serif-condensed-light",name:"Roboto Condensed Light",web:"Roboto Condensed",base:300},
+  {k:"sans-serif-condensed-medium",name:"Roboto Condensed Medium",web:"Roboto Condensed",base:500},
+  {k:"roboto-flex",name:"Roboto Flex (recent Android)",web:"Roboto Flex",base:400},
+  {k:"source-sans-pro",name:"Source Sans Pro (recent Android)",web:"Source Sans 3",base:400},
+  {k:"sans-serif-smallcaps",name:"Carrois Gothic SC (small caps)",web:"Carrois Gothic SC",base:400},
+  {k:"serif",name:"Noto Serif",web:"Noto Serif",base:400},
+  {k:"monospace",name:"Droid Sans Mono",web:"Noto Sans Mono",base:400},
+  {k:"serif-monospace",name:"Cutive Mono",web:"Cutive Mono",base:400},
+  {k:"casual",name:"Coming Soon",web:"Coming Soon",base:400},
+  {k:"cursive",name:"Dancing Script",web:"Dancing Script",base:400}];
+const WEIGHTS=[[400,"Normal"],[500,"Medium"],[700,"Bold"]];
+const WEB_FAMILIES={"Roboto":"Roboto:wght@100;300;400;500;700;900","Roboto Condensed":"Roboto+Condensed:wght@300;400;500;700",
+  "Roboto Flex":"Roboto+Flex:wght@400;500;700","Source Sans 3":"Source+Sans+3:wght@400;500;700",
+  "Carrois Gothic SC":"Carrois+Gothic+SC","Noto Serif":"Noto+Serif:wght@400;700","Noto Sans Mono":"Noto+Sans+Mono:wght@400;500;700",
+  "Cutive Mono":"Cutive+Mono","Coming Soon":"Coming+Soon","Dancing Script":"Dancing+Script:wght@400;500;700"};
+
+const COLOUR_KEYS=["claude","claude2","codex","codex2","cursor","cursor2","dim","edge","bg","bg2","label","reset","inkDark","inkLight","inkZero","haloA","haloB"];
+const LOOK_KEYS=["rowGrad","emptyStyle","edgeW","bgGrad","halo","haloMode","haloW","haloAlpha","halo2","haloScale","gloss","bevel","inkMode"];
+
+// Defaults = preview v3 (2026-10-19): flat Claude #D97757 / Codex #6E85FF / Cursor light grey on
+// black, very dark grey unused boxes, no effects. The end colours are what "gradient" uses.
+function defaults(){ return {
+  theme:"default",
+  font:"sans-serif", wLabel:700, wNum:700, wReset:400, sLabel:6.3, sNum:4.8, sReset:5.3,
+  W:180, H:114, size:"gh", rWidget:19, padX:9, padY:8,
+  labelW:11, labelGap:3, resetGap:3.5, resetW:22,
+  boxAuto:true, box:10.3, rBox:2.1, gapX:2.2, gapY:2.2,
+  showNums:true, showReset:true, inkMode:"auto",
+  rowGrad:false, claude:"#d97757", claude2:"#ffb08a", codex:"#6e85ff", codex2:"#b1a7ff", cursor:"#d6d6d6", cursor2:"#ffffff",
+  emptyStyle:"fill", dim:"#1e1e1e", edge:"#3a3a3a", edgeW:0.5,
+  bgGrad:"none", bg:"#000000", bg2:"#0d1220",
+  label:"#8a8a8a", reset:"#787878", inkDark:"#121212", inkLight:"#f5f5f5", inkZero:"#6e6e6e",
+  halo:false, haloMode:"box", haloA:"#ff7a4d", haloB:"#4f7bff", haloW:1, haloAlpha:0.35, halo2:true, haloScale:true,
+  gloss:0, bevel:0,
+}; }
+
+// Techy themes: each keeps the three roles (Claude orange, Codex blue, Cursor grey/white) and varies
+// the shades, the row gradient, the background and the native effects.
+const THEMES=[
+  ["default","Default (flat, as approved)",{}],
+  ["logo","Gradient: logo colours",{rowGrad:true,claude:"#a94a2a",claude2:"#ffb08a",codex:"#3941ff",codex2:"#b1a7ff",cursor:"#6e6e6e",cursor2:"#f5f5f5"}],
+  ["neon","Neon halo",{rowGrad:true,claude:"#ff5a2a",claude2:"#ffa27a",codex:"#3a5cff",codex2:"#8fa5ff",cursor:"#bdbdbd",cursor2:"#ffffff",dim:"#141414",
+    halo:true,haloMode:"box",haloW:1,haloAlpha:0.4,halo2:true,label:"#9a9a9a",reset:"#808080"}],
+  ["synthwave","Synthwave",{rowGrad:true,claude:"#ff5c6c",claude2:"#ffc07a",codex:"#6a5cff",codex2:"#36d8ff",cursor:"#a99cc9",cursor2:"#f6f0ff",
+    bgGrad:"down",bg:"#170a2b",bg2:"#000000",dim:"#22163a",label:"#8b80b3",reset:"#6f6699",inkZero:"#5d527f",
+    halo:true,haloMode:"row",haloA:"#ff7edb",haloB:"#36f9f6",haloW:1,haloAlpha:0.3,halo2:true}],
+  ["cyberpunk","Cyberpunk",{rowGrad:true,claude:"#ff3d00",claude2:"#ffb300",codex:"#0066ff",codex2:"#00e5ff",cursor:"#8a96a3",cursor2:"#e8f1fa",
+    bg:"#05070a",dim:"#13171d",label:"#7c8794",reset:"#5f6a77",inkZero:"#4b5561",halo:true,haloMode:"single",haloA:"#fcee0a",haloW:0.75,haloAlpha:0.25,halo2:false,bevel:0.3}],
+  ["tron","Tron grid",{rowGrad:true,claude:"#ff8a00",claude2:"#ffd27a",codex:"#1e88ff",codex2:"#7fe3ff",cursor:"#9fd8e6",cursor2:"#ffffff",
+    emptyStyle:"outline",edge:"#0e4a57",edgeW:0.5,bg:"#000000",label:"#5fb7c9",reset:"#3f8796",inkZero:"#2f6b78",
+    halo:true,haloMode:"single",haloA:"#00e5ff",haloW:1,haloAlpha:0.3,halo2:true}],
+  ["blueprint","Midnight blueprint",{rowGrad:true,claude:"#e8744a",claude2:"#ffb899",codex:"#3f7cff",codex2:"#9cc2ff",cursor:"#8a9bb8",cursor2:"#e6eefb",
+    emptyStyle:"both",dim:"#0f1b33",edge:"#1f3560",edgeW:0.5,bgGrad:"diag",bg:"#0a1838",bg2:"#02050d",label:"#6f84a8",reset:"#566a8d",inkZero:"#3f5378"}],
+  ["glass","Arctic glass",{rowGrad:true,claude:"#ff7b5c",claude2:"#ffc2ad",codex:"#4f8dff",codex2:"#bcd6ff",cursor:"#b8c4ce",cursor2:"#ffffff",
+    bgGrad:"down",bg:"#0b141c",bg2:"#020406",dim:"#17222c",label:"#7c93a6",reset:"#62788b",inkZero:"#4d6273",gloss:0.6}],
+  ["ember","Ember",{rowGrad:true,claude:"#7a2a10",claude2:"#ff7a3d",codex:"#1c2f9e",codex2:"#5f7dff",cursor:"#4a4f55",cursor2:"#c9ced3",
+    dim:"#1b1411",label:"#8a7a70",reset:"#6d5f56",inkZero:"#5a4a40",bevel:0.35}],
+  ["amber","Amber terminal",{rowGrad:true,claude:"#b36b00",claude2:"#ffcc4d",codex:"#2f5ad8",codex2:"#8fb0ff",cursor:"#a3865a",cursor2:"#ffe6bf",
+    bg:"#0a0700",dim:"#1d1606",label:"#a8853f",reset:"#86692f",inkZero:"#6b5524",halo:true,haloMode:"box",haloW:0.75,haloAlpha:0.3,halo2:false}],
+  ["hologram","Hologram",{rowGrad:true,claude:"#ff8f6b",claude2:"#ffd1c1",codex:"#5d8bff",codex2:"#c5f3ff",cursor:"#8fded7",cursor2:"#f2fffd",
+    emptyStyle:"outline",edge:"#174744",edgeW:0.5,bg:"#02060a",label:"#66b8b0",reset:"#4a8f89",inkZero:"#3a6b67",
+    halo:true,haloMode:"single",haloA:"#5ffbf1",haloW:1,haloAlpha:0.25,halo2:true,gloss:0.35}],
+  ["carbon","Carbon (matte)",{claude:"#c96a4b",codex:"#5a6fd6",cursor:"#b5b5b5",dim:"#191919",label:"#777777",reset:"#666666",bevel:0.35}],
+];
+
+let P=load()||defaults();
+let PV={pct:SAMPLES.today.slice(),h24:false};
+
+// ---------------------------------------------------------------------------------------------
+// Colour helpers
+// ---------------------------------------------------------------------------------------------
+function hexRgb(h){ h=(h||"#000000").replace("#",""); return [parseInt(h.slice(0,2),16)||0,parseInt(h.slice(2,4),16)||0,parseInt(h.slice(4,6),16)||0]; }
+function rgbHex(c){ return "#"+c.map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,"0")).join(""); }
+function mix(a,b,t){ const A=hexRgb(a),B=hexRgb(b); return rgbHex(A.map((v,i)=>v+(B[i]-v)*t)); }
+function rgba(h,a){ const c=hexRgb(h); return `rgba(${c[0]},${c[1]},${c[2]},${a})`; }
+function lum(h){ return hexRgb(h).map(v=>{v/=255; return v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4);}).reduce((s,v,i)=>s+v*[0.2126,0.7152,0.0722][i],0); }
+function contrast(a,b){ const x=lum(a),y=lum(b); return (Math.max(x,y)+0.05)/(Math.min(x,y)+0.05); }
+// The lit colour of box j (0..9) in a row of provider p: flat, or start -> end across the row.
+function litColour(p,j){ return P.rowGrad?mix(P[p],P[p+"2"],j/9):P[p]; }
+
+// ---------------------------------------------------------------------------------------------
+// Layout (dp). Labels at padX, reset column right-aligned to W - padX, boxes after the label gap.
+// "Fit" makes the box the largest square that fits both ways. The halo is drawn inside the gap
+// (a native widget can't paint outside a view's cell), so its width is capped at half the gap.
+// ---------------------------------------------------------------------------------------------
+function layout(){
+  const resetSpace=P.showReset?P.resetGap+P.resetW:0;
+  const availW=P.W-2*P.padX-P.labelW-P.labelGap-resetSpace;
+  const availH=P.H-2*P.padY;
+  const fit=Math.max(1,Math.min((availW-9*P.gapX)/10,(availH-6*P.gapY)/7));
+  const box=P.boxAuto?fit:P.box;
+  const gridH=7*box+6*P.gapY, gridW=10*box+9*P.gapX;
+  const haloMax=Math.min(P.gapX,P.gapY)/2;
+  return {box,fit,availW,availH,gridW,gridH,haloMax,haloW:Math.min(P.haloW,haloMax),
+    x0:P.padX, bx0:P.padX+P.labelW+P.labelGap, y0:(P.H-gridH)/2,
+    overflowW:gridW>availW+0.01, overflowH:gridH>availH+0.01};
+}
+
+// ---------------------------------------------------------------------------------------------
+// Drawing
+// ---------------------------------------------------------------------------------------------
+const cv=document.getElementById("c"), ctx=cv.getContext("2d");
+function rr(x,y,w,h,r){ r=Math.max(0,Math.min(r,w/2,h/2)); ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+function fontDef(){ return FONTS.find(f=>f.k===P.font)||FONTS[0]; }
+// Android: Normal keeps the family's own weight; Medium / Bold raise it (Bold of Black stays Black).
+function effWeight(w){ const b=fontDef().base; return w>=700?Math.max(b,700):w>=500?Math.max(b,500):b; }
+function font(w,s,z){ const f=fontDef(); return `${effWeight(w)} ${s*z}px '${f.web}', 'Roboto', sans-serif`; }
+// Centre a string on (x, y) by its INK, so digits sit dead centre in a box whatever the font.
+function textMid(s,x,y,align){
+  ctx.textBaseline="alphabetic"; ctx.textAlign=align||"center";
+  const m=ctx.measureText(s); const a=m.actualBoundingBoxAscent||0, d=m.actualBoundingBoxDescent||0;
+  ctx.fillText(s,x,y+(a-d)/2); }
+function haloColour(row,j,lit){
+  switch(P.haloMode){
+    case "single": return P.haloA;
+    case "row": return mix(P.haloA,P.haloB,j/9);
+    case "col": return mix(P.haloA,P.haloB,row/6);
+    default: return lit; } }
+function bgFill(w,h){
+  if(P.bgGrad==="none") return P.bg;
+  const g=P.bgGrad==="down"?ctx.createLinearGradient(0,0,0,h):P.bgGrad==="across"?ctx.createLinearGradient(0,0,w,0):ctx.createLinearGradient(0,0,w,h);
+  g.addColorStop(0,P.bg); g.addColorStop(1,P.bg2); return g; }
+
+function draw(){
+  const z=+P._zoom||3, dpr=window.devicePixelRatio||1, back=document.getElementById("backdrop").checked;
+  const margin=back?28:10;
+  const cssW=P.W*z+margin*2, cssH=P.H*z+margin*2;
+  cv.style.width=cssW+"px"; cv.style.height=cssH+"px";
+  cv.width=Math.round(cssW*dpr); cv.height=Math.round(cssH*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  if(back){ const g=ctx.createLinearGradient(0,0,cssW,cssH); g.addColorStop(0,"#2b3450"); g.addColorStop(0.55,"#151a2b"); g.addColorStop(1,"#0b0e18"); ctx.fillStyle=g; }
+  else ctx.fillStyle="#141414";
+  ctx.fillRect(0,0,cssW,cssH);
+  ctx.save(); ctx.translate(margin,margin);
+  const L=layout(), b=L.box*z, R=P.rBox*z;
+  rr(0,0,P.W*z,P.H*z,P.rWidget*z); ctx.fillStyle=bgFill(P.W*z,P.H*z); ctx.fill(); ctx.save(); ctx.clip();
+  const resets=PV.h24?RESETS24:RESETS12;
+  const bx=(j)=>(L.bx0+j*(L.box+P.gapX))*z, by=(i)=>(L.y0+i*(L.box+P.gapY))*z;
+
+  for(let i=0;i<7;i++){
+    const pct=PV.pct[i], prov=ROWS[i].prov, y=by(i), cy=y+b/2;
+    for(let j=0;j<10;j++){
+      const f=Math.max(0,Math.min(1,pct/10-j)), lit=litColour(prov,j), fill=mix(P.dim,lit,f), x=bx(j);
+      // Halo: one or two translucent rounded rings in the gap around the box (nested boxes).
+      if(P.halo&&f>0&&L.haloW>0){ const a=P.haloAlpha*(P.haloScale?f:1), hc=haloColour(i,j,lit), w=L.haloW*z;
+        const w2=Math.min(L.haloMax,L.haloW*2);   // the outer ring, where the gap leaves room for it
+        if(P.halo2&&w2>L.haloW+1e-6){ const o=w2*z; rr(x-o,y-o,b+2*o,b+2*o,R+o); ctx.fillStyle=rgba(hc,a*0.45); ctx.fill(); }
+        rr(x-w,y-w,b+2*w,b+2*w,R+w); ctx.fillStyle=rgba(hc,a); ctx.fill(); }
+      // The box itself; unused boxes as fill, outline, or both.
+      const empty=f<=0;
+      if(!empty||P.emptyStyle!=="outline"){ rr(x,y,b,b,R); ctx.fillStyle=empty?P.dim:fill; ctx.fill(); }
+      if(empty&&P.emptyStyle!=="fill"){ const ew=P.edgeW*z; ctx.lineWidth=ew; ctx.strokeStyle=P.edge; rr(x+ew/2,y+ew/2,b-ew,b-ew,Math.max(0,R-ew/2)); ctx.stroke(); }
+      // Gloss and bevel: fixed drawables layered over lit boxes.
+      if(!empty&&(P.gloss>0||P.bevel>0)){ ctx.save(); rr(x,y,b,b,R); ctx.clip();
+        if(P.gloss>0){ const g=ctx.createLinearGradient(x,y,x,y+b); g.addColorStop(0,`rgba(255,255,255,${0.42*P.gloss})`); g.addColorStop(0.5,`rgba(255,255,255,${0.08*P.gloss})`); g.addColorStop(0.51,"rgba(255,255,255,0)"); ctx.fillStyle=g; ctx.fillRect(x,y,b,b); }
+        if(P.bevel>0){ const g=ctx.createLinearGradient(x,y,x+b,y+b); g.addColorStop(0,`rgba(255,255,255,${0.32*P.bevel})`); g.addColorStop(0.45,"rgba(255,255,255,0)"); g.addColorStop(0.55,"rgba(0,0,0,0)"); g.addColorStop(1,`rgba(0,0,0,${0.45*P.bevel})`); ctx.fillStyle=g; ctx.fillRect(x,y,b,b); }
+        ctx.restore(); }
+      if(P.showNums){ const landing=Math.max(1,Math.min(10,Math.ceil(pct/10)));
+        if(j+1===landing){ let ink; const under=empty?P.dim:fill;
+          if(pct===0) ink=P.inkZero;
+          else if(P.inkMode==="light") ink=P.inkLight; else if(P.inkMode==="dark") ink=P.inkDark;
+          else ink=contrast(under,P.inkDark)>=contrast(under,P.inkLight)?P.inkDark:P.inkLight;
+          ctx.font=font(P.wNum,String(pct).length>=3?P.sNum*0.86:P.sNum,z); ctx.fillStyle=ink; textMid(String(pct),x+b/2,cy); } } }
+    ctx.font=font(P.wLabel,P.sLabel,z); ctx.fillStyle=P.label; textMid(ROWS[i].label,L.x0*z,cy,"left");
+    if(P.showReset){ ctx.font=font(P.wReset,P.sReset,z); ctx.fillStyle=P.reset; textMid(resets[i],(P.W-P.padX)*z,cy,"right"); }
+  }
+  ctx.restore();
+
+  if(document.getElementById("outline").checked){
+    ctx.setLineDash([3,3]); ctx.lineWidth=1; ctx.strokeStyle="rgba(255,180,84,.7)";
+    ctx.strokeRect(P.padX*z,P.padY*z,(P.W-2*P.padX)*z,(P.H-2*P.padY)*z);
+    ctx.strokeStyle="rgba(120,200,255,.6)"; ctx.strokeRect(L.x0*z,L.y0*z,P.labelW*z,L.gridH*z);
+    if(P.showReset) ctx.strokeRect((P.W-P.padX-P.resetW)*z,L.y0*z,P.resetW*z,L.gridH*z);
+    ctx.setLineDash([]); }
+  ctx.restore();
+
+  const w=[]; if(L.overflowW) w.push("boxes are wider than the space between the label and reset columns");
+  if(L.overflowH) w.push("rows are taller than the widget");
+  if(P.halo&&P.haloW>L.haloMax+1e-6) w.push("halo capped at "+L.haloMax.toFixed(2)+" dp (half the gap) - widen the gaps for a bigger halo");
+  document.getElementById("warn").textContent=w.length?"⚠ "+w.join("; ")+".":"";
+  refresh();
+}
+
+// ---------------------------------------------------------------------------------------------
+// Panel wiring (face-editor patterns: range + value, colour + hex, theme -> Custom on any edit)
+// ---------------------------------------------------------------------------------------------
+const $=id=>document.getElementById(id);
+function markCustom(){ if(P.theme!=="custom"){ P.theme="custom"; $("themeSel").value="custom"; } }
+function bindR(id,dec,themed){ const r=$(id), v=$(id+"V");
+  r.oninput=()=>{ P[id]=+r.value; v.textContent=(+r.value).toFixed(dec); if(themed) markCustom();
+    if(id==="W"||id==="H"){ P.size="custom"; $("sizePreset").value="custom"; } if(id==="box"){ P.boxAuto=false; $("boxAuto").checked=false; } draw(); }; }
+function syncR(id,dec){ $(id).value=P[id]; $(id+"V").textContent=(+P[id]).toFixed(dec); }
+const RANGES=[["W",0],["H",0],["rWidget",1],["padX",1],["padY",1],["labelW",1],["labelGap",1],["resetGap",1],["resetW",1],
+  ["box",1],["rBox",1],["gapX",1],["gapY",1],["sLabel",1],["sNum",1],["sReset",1]];
+const THEMED_RANGES=[["haloW",2],["haloAlpha",2],["gloss",2],["bevel",2],["edgeW",2]];
+RANGES.forEach(([id,d])=>bindR(id,d,false)); THEMED_RANGES.forEach(([id,d])=>bindR(id,d,true));
+const COLOUR_IDS={claude:"cClaude",claude2:"cClaude2",codex:"cCodex",codex2:"cCodex2",cursor:"cCursor",cursor2:"cCursor2",dim:"cDim",edge:"cEdge",
+  bg:"cBg",bg2:"cBg2",label:"cLabel",reset:"cReset",inkDark:"cInkD",inkLight:"cInkL",inkZero:"cInkZ",haloA:"cHaloA",haloB:"cHaloB"};
+function bindColor(key,id){ const p=$(id), h=$(id+"H");
+  const set=v=>{ P[key]=v;
+    // Editing an end colour, a halo colour or the second background colour turns that effect on,
+    // rather than appearing to do nothing.
+    if(/2$/.test(key)&&key!=="bg2"&&!P.rowGrad){ P.rowGrad=true; $("rowGrad").checked=true; }
+    if(key==="bg2"&&P.bgGrad==="none"){ P.bgGrad="down"; $("bgGrad").value="down"; }
+    if((key==="haloA"||key==="haloB")&&!P.halo){ P.halo=true; $("halo").checked=true; }
+    if(key==="edge"&&P.emptyStyle==="fill"){ P.emptyStyle="both"; $("emptyStyle").value="both"; }
+    markCustom(); draw(); };
+  p.oninput=()=>{ h.value=p.value; set(p.value); };
+  h.oninput=()=>{ let v=h.value.trim(); if(!/^#/.test(v)) v="#"+v; if(/^#[0-9a-fA-F]{6}$/.test(v)){ p.value=v.toLowerCase(); set(v.toLowerCase()); } }; }
+for(const k in COLOUR_IDS) bindColor(k,COLOUR_IDS[k]);
+function bindChk(id,themed){ $(id).onchange=function(){ P[id]=this.checked; if(themed) markCustom(); draw(); }; }
+bindChk("rowGrad",true); bindChk("halo",true); bindChk("halo2",true); bindChk("haloScale",true); bindChk("showNums"); bindChk("showReset"); bindChk("boxAuto");
+function bindSel(id,themed,after){ $(id).onchange=function(){ P[id]=this.value; if(after) after(); if(themed) markCustom(); draw(); }; }
+bindSel("haloMode",true,()=>{ if(!P.halo){ P.halo=true; $("halo").checked=true; } });
+bindSel("inkMode",true); bindSel("emptyStyle",true); bindSel("bgGrad",true);
+["wLabel","wNum","wReset"].forEach(id=>{ const s=$(id); WEIGHTS.forEach(([w,n])=>{ const o=document.createElement("option"); o.value=w; o.textContent=n; s.appendChild(o); });
+  s.onchange=function(){ P[id]=+this.value; draw(); }; });
+$("sizePreset").onchange=function(){ P.size=this.value; const s=SIZE_PRESETS[this.value]; if(s){ P.W=s[0]; P.H=s[1]; syncR("W",0); syncR("H",0); } draw(); };
+$("backdrop").onchange=draw; $("outline").onchange=draw;
+$("zoom").oninput=function(){ P._zoom=+this.value; $("zoomV").textContent=(+this.value).toFixed(2)+"×"; draw(); };
+
+// Theme menu
+const themeSel=$("themeSel");
+THEMES.concat([["custom","Custom",null]]).forEach(([k,l])=>{ const o=document.createElement("option"); o.value=k; o.textContent=l; themeSel.appendChild(o); });
+function applyTheme(k){ const th=THEMES.find(t=>t[0]===k); if(!th) return; const d=defaults();
+  // A theme sets every colour and look key; anything it leaves out falls back to the default.
+  COLOUR_KEYS.concat(LOOK_KEYS).forEach(key=>{ P[key]=(key in th[2])?th[2][key]:d[key]; });
+  P.theme=k; syncAll(); draw(); }
+themeSel.onchange=function(){ if(this.value!=="custom") applyTheme(this.value); else { P.theme="custom"; draw(); } };
+
+// Fonts: the widget can only name Android's built-in families; the preview loads the same
+// typefaces from Google Fonts and keeps drawing in the current one until the new one has loaded.
+const fontSel=$("fontSel");
+FONTS.forEach(f=>{ const o=document.createElement("option"); o.value=f.k; o.textContent=f.name+"  ·  "+f.k; fontSel.appendChild(o); });
+const _css={};
+function webFont(fam){ if(!_css[fam]){ _css[fam]=new Promise(res=>{ const l=document.createElement("link"); l.rel="stylesheet";
+    l.href="https://fonts.googleapis.com/css2?family="+WEB_FAMILIES[fam]+"&display=swap"; l.onload=()=>res(); l.onerror=()=>res();
+    document.head.appendChild(l); setTimeout(res,4000); }); }
+  return _css[fam]; }
+let fontReq=0;
+function setFont(k){ const my=++fontReq, f=FONTS.find(x=>x.k===k)||FONTS[0];
+  const apply=()=>{ if(my!==fontReq) return; P.font=f.k; draw(); renderFontTable(); };
+  const giveUp=setTimeout(apply,5000);
+  webFont(f.web).then(()=>document.fonts&&document.fonts.load?Promise.all([400,500,700,f.base].map(w=>document.fonts.load(effW(f,w)+" 40px '"+f.web+"'").catch(()=>{}))):null)
+    .then(()=>{ clearTimeout(giveUp); apply(); }); }
+function effW(f,w){ return w>=700?Math.max(f.base,700):w>=500?Math.max(f.base,500):f.base; }
+fontSel.onchange=function(){ setFont(this.value); markFontPick(); };
+function markFontPick(){ document.querySelectorAll("#fontTable tr").forEach(tr=>tr.style.background=tr.dataset.k===fontSel.value?"#242424":""); }
+// The reference table: every family with a sample line in Normal and Bold.
+function renderFontTable(){ const t=$("fontTable"); t.innerHTML="";
+  FONTS.forEach(f=>{ const tr=document.createElement("tr"); tr.dataset.k=f.k; tr.style.cursor="pointer"; tr.title="use this font";
+    tr.innerHTML=`<td class="k">${f.k}</td><td>${f.name}</td><td class="s" style="font-family:'${f.web}';font-weight:${f.base}">5H 1W 36 Wed</td><td class="s" style="font-family:'${f.web}';font-weight:${effW(f,700)}">5H 36</td>`;
+    tr.onclick=()=>{ fontSel.value=f.k; setFont(f.k); markFontPick(); }; t.appendChild(tr); });
+  markFontPick(); }
+// Load every preview family once (they are small) so the table shows real samples.
+Object.keys(WEB_FAMILIES).forEach(webFont);
+
+// Preview data
+const pctRows=$("pctRows");
+ROWS.forEach((r,i)=>{ const d=document.createElement("div"); d.className="row";
+  d.innerHTML=`<label title="${r.name}">${r.label} &middot; ${r.prov}</label><input type="range" id="pv${i}" min="0" max="100" step="1"><span class="val" id="pv${i}V"></span>`;
+  pctRows.appendChild(d);
+  d.querySelector("input").oninput=function(){ PV.pct[i]=+this.value; $("pv"+i+"V").textContent=this.value+"%"; draw(); }; });
+function syncPv(){ ROWS.forEach((r,i)=>{ $("pv"+i).value=PV.pct[i]; $("pv"+i+"V").textContent=PV.pct[i]+"%"; }); }
+$("sampleSel").onchange=function(){ PV.pct=SAMPLES[this.value].slice(); syncPv(); draw(); };
+$("h24").onchange=function(){ PV.h24=this.checked; draw(); };
+
+// ---------------------------------------------------------------------------------------------
+// Settings block, persistence (this browser only), reset
+// ---------------------------------------------------------------------------------------------
+function settings(){ const o={}; Object.keys(defaults()).forEach(k=>o[k]=P[k]); return o; }
+function refresh(){ const L=layout();
+  const head=["// Usage Grid widget - paste this back to me. Lengths in dp, text in sp; font = Android family name.",
+    "// computed box: "+L.box.toFixed(2)+" dp"+(P.boxAuto?" (fit)":" (manual)")+", grid "+L.gridW.toFixed(1)+" x "+L.gridH.toFixed(1)+" dp"+(P.halo?", halo "+L.haloW.toFixed(2)+" dp":"")];
+  $("out").value=head.join("\n")+"\n"+JSON.stringify(settings(),null,1);
+  try{ localStorage.setItem("usageGridEditor2",JSON.stringify(settings())); }catch(e){} }
+function load(){ try{ const s=JSON.parse(localStorage.getItem("usageGridEditor2")||"null"); return s?Object.assign(defaults(),s):null; }catch(e){ return null; } }
+function syncAll(){
+  RANGES.concat(THEMED_RANGES).forEach(([id,d])=>syncR(id,d));
+  for(const k in COLOUR_IDS){ $(COLOUR_IDS[k]).value=P[k]; $(COLOUR_IDS[k]+"H").value=P[k]; }
+  ["rowGrad","halo","halo2","haloScale","showNums","showReset","boxAuto"].forEach(id=>$(id).checked=!!P[id]);
+  ["haloMode","inkMode","emptyStyle","bgGrad"].forEach(id=>$(id).value=P[id]);
+  themeSel.value=P.theme; ["wLabel","wNum","wReset"].forEach(id=>$(id).value=P[id]); fontSel.value=P.font;
+  $("sizePreset").value=SIZE_PRESETS[P.size]?P.size:"custom"; }
+function copyOut(){ const t=$("out"); t.select(); try{ navigator.clipboard.writeText(t.value); }catch(e){ document.execCommand("copy"); }
+  $("status").textContent="Copied."; setTimeout(()=>$("status").textContent="",1500); }
+function applyPasted(){ try{ const s=JSON.parse($("out").value.replace(/^\s*\/\/.*$/gm,""));
+    const z=P._zoom; P=Object.assign(defaults(),s); P._zoom=z; syncAll(); setFont(P.font); $("status").textContent="Applied."; }
+  catch(e){ $("status").textContent="Could not read that block: "+e.message; } }
+function resetAll(){ const z=P._zoom; P=defaults(); P._zoom=z; syncAll(); setFont(P.font); $("status").textContent="Back to the defaults."; }
+
+P._zoom=3; $("zoom").value=3; $("zoomV").textContent="3.00×";
+// Open on a theme / sample from the address, e.g. usage-grid-editor.html#theme=neon&sample=busy
+(function(){ const q=new URLSearchParams(location.hash.slice(1));
+  if(q.get("theme")&&THEMES.some(t=>t[0]===q.get("theme"))) applyTheme(q.get("theme"));
+  if(q.get("sample")&&SAMPLES[q.get("sample")]){ PV.pct=SAMPLES[q.get("sample")].slice(); $("sampleSel").value=q.get("sample"); }
+  if(q.get("font")&&FONTS.some(f=>f.k===q.get("font"))) P.font=q.get("font"); })();
+syncAll(); syncPv(); renderFontTable(); draw(); setFont(P.font);
+</script>
+</body></html>
