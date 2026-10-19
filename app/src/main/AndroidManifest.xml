@@ -62,5 +62,18 @@
                 android:resource="@xml/cursor_widget_info" />
         </receiver>
 
+        <!-- The 2x1 usage grid: every provider at once, not resizable. -->
+        <receiver
+            android:name=".widget.UsageGridWidgetReceiver"
+            android:exported="false"
+            android:label="@string/widget_label_grid">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/usage_grid_widget_info" />
+        </receiver>
+
     </application>
 </manifest>

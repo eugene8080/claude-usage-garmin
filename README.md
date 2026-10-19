@@ -50,7 +50,11 @@ Then continue with first-run setup below.
 1. **On your computer**, open **Orca → Settings → Mobile → Pair a phone**. Choose **Connection: LAN** and the computer's **Tailscale address** (`100.x.y.z`) so the widgets also work away from home (a Wi-Fi address works only on the same network), then click **Generate QR code**.
 2. **On the phone**, open the **Claude Usage** app and tap **Scan QR code** (or copy Orca's pairing link and tap **Paste**). Check the **Orca address**, then tap **Save and test**. It prints your Claude, Codex and Cursor numbers; they should match Orca's status bar.
 3. **Let it run in the background — required.** The app opens a *Keep Claude Usage running* prompt (also under **Background settings**); follow both parts. See [Required phone settings](#-required-phone-settings) below.
-4. Long-press your home screen → **Widgets** → **Claude Usage**, and drag on **Claude usage**, **Codex usage** and/or **Cursor usage** — one widget per provider. Resize each however you like. Tap one any time to refresh.
+4. Long-press your home screen → **Widgets** → **Claude Usage**, and drag on any of the four:
+   - **Claude usage**, **Codex usage**, **Cursor usage**: one widget per provider. Resize each however you like.
+   - **Usage grid**: all three providers at once, at a fixed 2×1.
+
+   Tap any widget to refresh.
 
 Already using the Orca phone app? Pair the widget as a **new** device anyway: it gets its own entry in Orca's device list, so either can be revoked without the other.
 
@@ -253,6 +257,13 @@ Neither Anthropic, OpenAI nor Cursor offers a public API for subscription usage,
 ## ✨ Highlights
 
 - **Three providers, one widget each.** Claude: `5H`, `1W` and the per-model `1W Fable` cap. Codex: `5H` and `1W`. Cursor: the monthly plan plus its `Auto` and `API` pools. Each row shows when it resets, and a row Orca has no numbers for is left out.
+- **Usage grid (2×1).** All seven windows at once, GitHub-contribution style:
+  - rows: Claude `5H` / `1W` / `FA`, Codex `1W`, Cursor `PL` / `AU` / `AP`;
+  - 10 boxes per row, each worth 10 %, coloured with that row's gradient;
+  - the box a percentage lands in is shaded by how far into it the usage is, and shows the number;
+  - each row's reset time on the right.
+
+  Designed in [docs/widget-editor/usage-grid-editor.html](docs/widget-editor/usage-grid-editor.html), and drawn natively (no picture of the widget).
 - **Refreshes itself.** A background job updates every ~15 minutes; tap a widget to force an immediate refresh.
 - **Pair once.** One QR scan from Orca; no provider passwords or cookies on the phone. You pair again only if you revoke the device in Orca.
 - **Resizes freely.** The full stacked layout fits even a one-row (3×1) widget; narrower or shorter sizes get compact layouts. Adapts to light & dark themes.
@@ -323,7 +334,7 @@ base64 -w0 release.keystore   # paste into the KEYSTORE_BASE64 secret
 | `app/.../orca` | The desktop Orca link: pairing-code parsing, the E2EE v2 session and NaCl primitives, and the one-call WebSocket client ([docs/orca-protocol.md](docs/orca-protocol.md)). |
 | `app/.../data` | Encrypted storage, the `accounts.list` parser, and the repository that runs a fetch and records the link state. |
 | `ui/MainActivity.kt` | The pairing / status screen. |
-| `widget/` | The Glance widgets (one per provider) and their shared layouts. |
+| `widget/` | The Glance widgets (one per provider, plus the usage grid) and their layouts. |
 | `work/` | Background refresh scheduling. |
 | `watch/WatchBridge.kt` | The push to the Garmin watch app — the phone side of [`garmin/CONTRACT.md`](garmin/CONTRACT.md). |
 | `garmin/` | The Connect IQ watch app, the watch faces, their shared files and the phone↔watch contract (see [On your Garmin watch](#-on-your-garmin-watch)). |

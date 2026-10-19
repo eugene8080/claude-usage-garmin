@@ -1,0 +1,45 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!--
+      The usage grid's finish on every lit box, scaled to the box (ContentScale.FillBounds) and
+      clipped to its rounded corners. Values from the editor design (usage-grid-design.jsonc):
+        gloss 0.5 -> white 0.21 at the top, 0.04 at mid-height, then a hard stop to clear
+        bevel 0.1 -> white 0.032 top-left to clear at 45 %, clear to black 0.045 bottom-right
+      (alpha = editor factor x setting: gloss 0.42 / 0.08, bevel 0.32 / 0.45).
+    -->
+    <path android:pathData="M0,0 H24 V24 H0 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="0"
+                android:startY="0"
+                android:endX="0"
+                android:endY="24">
+                <item android:offset="0" android:color="#36FFFFFF" />
+                <item android:offset="0.5" android:color="#0AFFFFFF" />
+                <item android:offset="0.51" android:color="#00FFFFFF" />
+                <item android:offset="1" android:color="#00FFFFFF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M0,0 H24 V24 H0 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="0"
+                android:startY="0"
+                android:endX="24"
+                android:endY="24">
+                <item android:offset="0" android:color="#08FFFFFF" />
+                <item android:offset="0.45" android:color="#00FFFFFF" />
+                <item android:offset="0.55" android:color="#00000000" />
+                <item android:offset="1" android:color="#0B000000" />
+            </gradient>
+        </aapt:attr>
+    </path>
+</vector>
