@@ -25,6 +25,14 @@
   .chk label{flex:0 0 auto !important;}
   .warn{color:#ffb454;font-size:11.5px;margin:6px 0;min-height:14px;max-width:560px;}
   .sub{font-size:11px;color:#777;text-transform:uppercase;letter-spacing:.4px;margin:12px 0 2px;}
+  /* Collapsible sections: click a heading to fold it; the editor remembers which are open. */
+  details.panel>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none;}
+  details.panel>summary::-webkit-details-marker{display:none;}
+  details.panel>summary h2{margin:0;}
+  details.panel>summary::after{content:"\25BE";color:#777;font-size:13px;transition:transform .15s;}
+  details.panel:not([open])>summary::after{transform:rotate(-90deg);}
+  details.panel[open]>summary{margin-bottom:10px;}
+  .fold{display:flex;gap:8px;margin:2px 0 10px;} .fold button{margin:0;padding:5px 10px;font-size:12px;}
   table.fonts{border-collapse:collapse;width:100%;font-size:12px;} table.fonts td{padding:3px 4px;border-top:1px solid #242424;color:#bbb;vertical-align:middle;}
   table.fonts td.k{font-family:ui-monospace,monospace;color:#8fb7ff;font-size:11px;white-space:nowrap;} table.fonts td.s{font-size:15px;color:#eee;}
 </style></head>
@@ -36,14 +44,14 @@
       number; the right column is each row's reset time. <b>Everything here is drawn natively by the widget</b> - plain
       boxes, colours, Android's own fonts, rounded corners, and fixed drawables for the gradients, gloss and bevel - no
       picture of the widget. Sizes are dp / sp at the <b>zoom</b> below. <b>Theme</b> sets the colours and effects at once;
-      editing one switches to <b>Custom</b>. <b>Copy settings</b> and paste the block back to me.</p>
+      editing one switches to <b>Custom</b>. Click a section's heading to fold it. <b>Copy settings</b> and paste the block back to me.</p>
     <div id="wrap"><canvas id="c"></canvas></div>
     <div class="warn" id="warn"></div>
     <div class="row"><label>Zoom</label><input type="range" id="zoom" min="1" max="6" step="0.25"><span class="val" id="zoomV"></span></div>
     <div class="row chk"><input type="checkbox" id="backdrop" checked><label for="backdrop">Home-screen backdrop</label>
       <input type="checkbox" id="outline" style="margin-left:18px"><label for="outline">Show layout guides</label></div>
-    <div class="panel">
-      <h2>Preview data</h2>
+    <div class="fold"><button class="sec" onclick="foldAll(true)">Expand all</button><button class="sec" onclick="foldAll(false)">Collapse all</button></div>
+    <details class="panel" open data-k="preview-data"><summary><h2>Preview data</h2></summary>
       <div class="row"><label>Sample</label><select id="sampleSel">
         <option value="today">Today's numbers from Orca</option>
         <option value="busy">Busier day (61 / 69 / 5 / 34 / 55 / 97 / 18)</option>
@@ -52,21 +60,18 @@
         <option value="empty">All 0 %</option>
       </select></div>
       <div id="pctRows"></div>
-      <div class="row chk"><input type="checkbox" id="h24"><label for="h24">24-hour reset times</label></div>
       <div class="muted">Preview only - not part of the settings block.</div>
-    </div>
-    <div class="panel">
-      <h2>Fonts the widget can use</h2>
+    </details>
+    <details class="panel" open data-k="fonts-the-widget-can-use"><summary><h2>Fonts the widget can use</h2></summary>
       <div class="muted" style="margin-bottom:6px">A home-screen widget can't load its own fonts unless it is drawn as a picture, so it uses
         Android's built-in families, in three weights: Normal, Medium, Bold. The samples below use the same typefaces from
         Google Fonts. <b>Brand phones can swap the default sans</b>: on ColorOS (Oppo) <code>sans-serif</code> may come out in OPPO Sans.</div>
       <table class="fonts" id="fontTable"></table>
-    </div>
+    </details>
   </div>
 
   <div class="side">
-    <div class="panel">
-      <h2>Theme &amp; box colours</h2>
+    <details class="panel" open data-k="theme-box-colours"><summary><h2>Theme &amp; box colours</h2></summary>
       <div class="row"><label title="sets every colour and effect at once; editing any of them switches to Custom">Theme</label><select id="themeSel"></select></div>
       <div class="row chk"><input type="checkbox" id="rowGrad"><label for="rowGrad" title="each lit box gets its own colour, from the row's start colour (box 1) to its end colour (box 10)">Gradient across the 10 boxes</label></div>
       <div class="row"><label>Claude</label><div class="pair"><input type="color" id="cClaude"><input type="text" id="cClaudeH" class="hex"><span class="arrow">&rarr;</span><input type="color" id="cClaude2"><input type="text" id="cClaude2H" class="hex"></div></div>
@@ -78,10 +83,9 @@
       <div class="row"><label title="unused boxes: faintly visible on the background">Dimmed fill</label><input type="color" id="cDim"><input type="text" id="cDimH" class="hex"></div>
       <div class="row"><label>Outline</label><input type="color" id="cEdge"><input type="text" id="cEdgeH" class="hex"></div>
       <div class="row"><label>Outline width</label><input type="range" id="edgeW" min="0.25" max="2" step="0.25"><span class="val" id="edgeWV"></span></div>
-    </div>
+    </details>
 
-    <div class="panel">
-      <h2>Halo (native glow)</h2>
+    <details class="panel" open data-k="halo-native-glow"><summary><h2>Halo (native glow)</h2></summary>
       <div class="muted" style="margin-bottom:4px">A widget can't blur, so the glow is a translucent ring around each lit box (one or two
         rings, softer outside). It lives in the gap between boxes, so it is at most half the gap wide.</div>
       <div class="row chk"><input type="checkbox" id="halo"><label for="halo">Halo around lit boxes</label></div>
@@ -96,10 +100,9 @@
       <div class="row"><label>Opacity</label><input type="range" id="haloAlpha" min="0" max="1" step="0.05"><span class="val" id="haloAlphaV"></span></div>
       <div class="row chk"><input type="checkbox" id="halo2"><label for="halo2">Second, softer ring outside</label></div>
       <div class="row chk"><input type="checkbox" id="haloScale"><label for="haloScale">Graded box's halo follows its fill</label></div>
-    </div>
+    </details>
 
-    <div class="panel">
-      <h2>Box finish</h2>
+    <details class="panel" open data-k="box-finish"><summary><h2>Box finish</h2></summary>
       <div class="row chk"><input type="checkbox" id="boxAuto"><label for="boxAuto">Size boxes to fit the widget</label></div>
       <div class="row"><label title="used when 'fit' is off">Box size</label><input type="range" id="box" min="4" max="24" step="0.1"><span class="val" id="boxV"></span></div>
       <div class="row"><label title="corner radius of each box, dp (needs Android 12+)">Corner radius</label><input type="range" id="rBox" min="0" max="8" step="0.1"><span class="val" id="rBoxV"></span></div>
@@ -107,10 +110,9 @@
       <div class="row"><label title="3D edge: light top-left, dark bottom-right (a fixed drawable)">Bevel (3D edge)</label><input type="range" id="bevel" min="0" max="1" step="0.05"><span class="val" id="bevelV"></span></div>
       <div class="row"><label title="gap between boxes in a row, dp">Gap across</label><input type="range" id="gapX" min="0" max="8" step="0.1"><span class="val" id="gapXV"></span></div>
       <div class="row"><label title="gap between rows, dp">Gap down</label><input type="range" id="gapY" min="0" max="8" step="0.1"><span class="val" id="gapYV"></span></div>
-    </div>
+    </details>
 
-    <div class="panel">
-      <h2>Background &amp; text colours</h2>
+    <details class="panel" open data-k="background-text-colours"><summary><h2>Background &amp; text colours</h2></summary>
       <div class="row"><label>Background</label><select id="bgGrad"><option value="none">Solid</option><option value="down">Gradient top &rarr; bottom</option><option value="diag">Gradient diagonal</option><option value="across">Gradient left &rarr; right</option></select></div>
       <div class="row"><label>Colours</label><div class="pair"><input type="color" id="cBg"><input type="text" id="cBgH" class="hex"><span class="arrow">&rarr;</span><input type="color" id="cBg2"><input type="text" id="cBg2H" class="hex"></div></div>
       <div class="row"><label>Labels</label><input type="color" id="cLabel"><input type="text" id="cLabelH" class="hex"></div>
@@ -121,23 +123,31 @@
       <div class="row"><label>Number colour</label><select id="inkMode">
         <option value="auto">Auto: dark or light, whichever contrasts more</option>
         <option value="light">Always light</option><option value="dark">Always dark</option></select></div>
-    </div>
+    </details>
 
-    <div class="panel">
-      <h2>Text</h2>
+    <details class="panel" open data-k="text"><summary><h2>Text</h2></summary>
       <div class="row"><label style="flex:0 0 40px">Font</label><select id="fontSel"></select></div>
       <div class="row"><label>Label size</label><input type="range" id="sLabel" min="3" max="14" step="0.1"><span class="val" id="sLabelV"></span></div>
       <div class="row"><label>Label weight</label><select id="wLabel"></select></div>
       <div class="row"><label>Number size</label><input type="range" id="sNum" min="2.5" max="12" step="0.1"><span class="val" id="sNumV"></span></div>
       <div class="row"><label>Number weight</label><select id="wNum"></select></div>
-      <div class="row"><label>Reset size</label><input type="range" id="sReset" min="3" max="12" step="0.1"><span class="val" id="sResetV"></span></div>
+      <div class="sub">Reset column</div>
+      <div class="row"><label title="the 5H window's reset, a time today">Time format</label><select id="fmtTime">
+        <option value="HHmm">1445 (24-hour, no colon)</option><option value="HH:mm">14:45</option><option value="h:mm a">2:45 PM</option></select></div>
+      <div class="row"><label title="size of the time on the 5H row only">5H time size</label><input type="range" id="sResetTime" min="3" max="12" step="0.1"><span class="val" id="sResetTimeV"></span></div>
+      <div class="row"><label title="weekly windows: the reset weekday">Day format</label><select id="fmtDay">
+        <option value="UPPER">WED</option><option value="Title">Wed</option></select></div>
+      <div class="row"><label title="Cursor's billing cycle: the reset date">Date format</label><select id="fmtDate">
+        <option value="MMMdd">NOV06</option><option value="ddMMM">06NOV</option><option value="MMM d">Nov 6</option></select></div>
+      <div class="row"><label title="size of the weekday and date rows">Day / date size</label><input type="range" id="sReset" min="3" max="12" step="0.1"><span class="val" id="sResetV"></span></div>
       <div class="row"><label>Reset weight</label><select id="wReset"></select></div>
+      <div class="muted">The sample shows 14:45, Wed, Sun and Nov 6. On the phone the format follows how far away the
+        reset is: within a day a time, within a week a weekday, further a date.</div>
       <div class="row chk"><input type="checkbox" id="showNums"><label for="showNums">Number in the box it lands in</label></div>
       <div class="row chk"><input type="checkbox" id="showReset"><label for="showReset">Reset-time column</label></div>
-    </div>
+    </details>
 
-    <div class="panel">
-      <h2>Size &amp; spacing</h2>
+    <details class="panel" open data-k="size-spacing"><summary><h2>Size &amp; spacing</h2></summary>
       <div class="row"><label>Widget</label><select id="sizePreset">
         <option value="gh">GitHub-widget shape (180 &times; 114 dp)</option>
         <option value="pixel">Pixel-class 2&times;1 (178 &times; 104 dp)</option>
@@ -152,14 +162,13 @@
       <div class="row"><label>Label &rarr; boxes</label><input type="range" id="labelGap" min="0" max="15" step="0.5"><span class="val" id="labelGapV"></span></div>
       <div class="row"><label>Boxes &rarr; reset</label><input type="range" id="resetGap" min="0" max="15" step="0.5"><span class="val" id="resetGapV"></span></div>
       <div class="row"><label>Reset column</label><input type="range" id="resetW" min="8" max="50" step="0.5"><span class="val" id="resetWV"></span></div>
-    </div>
+    </details>
 
-    <div class="panel">
-      <h2>Settings (paste back to me)</h2>
+    <details class="panel" open data-k="settings-paste-back-to-me"><summary><h2>Settings (paste back to me)</h2></summary>
       <textarea id="out" spellcheck="false"></textarea>
       <button onclick="copyOut()">Copy settings</button><button class="sec" onclick="applyPasted()" title="read the block above back into the editor">Apply pasted</button><button class="sec" onclick="resetAll()">Reset to default</button>
       <div class="muted" id="status"></div>
-    </div>
+    </details>
   </div>
 
 <script>
@@ -180,7 +189,18 @@ const SAMPLES={
   today:[20,36,0,3,2,2,0], busy:[61,69,5,34,55,97,18], edges:[0,5,60,61,69,97,100],
   full:[100,100,100,100,100,100,100], empty:[0,0,0,0,0,0,0]};
 // Reset labels as the widget formats them (TimeFmt.resetsAt).
-const RESETS12=["3:39 AM","Wed","Wed","Sun","Nov 6","Nov 6","Nov 6"], RESETS24=["3:39","Wed","Wed","Sun","Nov 6","Nov 6","Nov 6"];
+// Sample reset per row: the 5H window resets at a time today, the weekly caps on a weekday, Cursor's
+// billing cycle on a date - the same choice TimeFmt makes from the distance to the reset.
+const RESET_SAMPLES=[{t:"time",h:14,m:45},{t:"day",d:"Wed"},{t:"day",d:"Wed"},{t:"day",d:"Sun"},
+  {t:"date",mon:"Nov",day:6},{t:"date",mon:"Nov",day:6},{t:"date",mon:"Nov",day:6}];
+const pad2=v=>(v<10?"0":"")+v;
+function resetText(r){
+  if(r.t==="time"){ if(P.fmtTime==="HHmm") return pad2(r.h)+pad2(r.m); if(P.fmtTime==="HH:mm") return pad2(r.h)+":"+pad2(r.m);
+    return ((r.h%12)||12)+":"+pad2(r.m)+(r.h<12?" AM":" PM"); }
+  if(r.t==="day") return P.fmtDay==="UPPER"?r.d.toUpperCase():r.d;
+  if(P.fmtDate==="MMMdd") return r.mon.toUpperCase()+pad2(r.day);
+  if(P.fmtDate==="ddMMM") return pad2(r.day)+r.mon.toUpperCase();
+  return r.mon+" "+r.day; }
 const SIZE_PRESETS={gh:[180,114],pixel:[178,104],fold:[230,150]};
 
 // Android's built-in font families (AOSP /system/etc/fonts.xml, checked on the Android 16 emulator
@@ -213,27 +233,38 @@ const WEB_FAMILIES={"Roboto":"Roboto:wght@100;300;400;500;700;900","Roboto Conde
 const COLOUR_KEYS=["claude","claude2","codex","codex2","cursor","cursor2","dim","edge","bg","bg2","label","reset","inkDark","inkLight","inkZero","haloA","haloB"];
 const LOOK_KEYS=["rowGrad","emptyStyle","edgeW","bgGrad","halo","haloMode","haloW","haloAlpha","halo2","haloScale","gloss","bevel","inkMode"];
 
-// Defaults = preview v3 (2026-10-19): flat Claude #D97757 / Codex #6E85FF / Cursor light grey on
-// black, very dark grey unused boxes, no effects. The end colours are what "gradient" uses.
+// Defaults = the design shipped in v2.2 (docs/widget-editor/usage-grid-design.jsonc, Eugene
+// 2026-10-19), plus the right-column formats asked for the same day: the 5H reset as a 24-hour time
+// with no colon (1445) at its own size, weekdays in capitals (WED), dates as NOV06.
 function defaults(){ return {
-  theme:"default",
-  font:"sans-serif", wLabel:700, wNum:700, wReset:400, sLabel:6.3, sNum:4.8, sReset:5.3,
-  W:180, H:114, size:"gh", rWidget:19, padX:9, padY:8,
-  labelW:11, labelGap:3, resetGap:3.5, resetW:22,
-  boxAuto:true, box:10.3, rBox:2.1, gapX:2.2, gapY:2.2,
+  theme:"shipped",
+  font:"monospace", wLabel:400, wNum:400, wReset:400, sLabel:7.5, sNum:7, sReset:5.3, sResetTime:5.3,
+  fmtTime:"HHmm", fmtDay:"UPPER", fmtDate:"MMMdd",
+  W:182, H:114, size:"custom", rWidget:19, padX:9, padY:8,
+  labelW:12, labelGap:3, resetGap:3.5, resetW:22,
+  boxAuto:false, box:10.4, rBox:3.8, gapX:1.8, gapY:4.3,
   showNums:true, showReset:true, inkMode:"auto",
-  rowGrad:false, claude:"#d97757", claude2:"#ffb08a", codex:"#6e85ff", codex2:"#b1a7ff", cursor:"#d6d6d6", cursor2:"#ffffff",
-  emptyStyle:"fill", dim:"#1e1e1e", edge:"#3a3a3a", edgeW:0.5,
+  rowGrad:true, claude:"#f06000", claude2:"#ffd27a", codex:"#0d6ad3", codex2:"#7fe3ff", cursor:"#9fd8e6", cursor2:"#ffffff",
+  emptyStyle:"fill", dim:"#1e1e1e", edge:"#0e4a57", edgeW:1,
   bgGrad:"none", bg:"#000000", bg2:"#0d1220",
-  label:"#8a8a8a", reset:"#787878", inkDark:"#121212", inkLight:"#f5f5f5", inkZero:"#6e6e6e",
-  halo:false, haloMode:"box", haloA:"#ff7a4d", haloB:"#4f7bff", haloW:1, haloAlpha:0.35, halo2:true, haloScale:true,
-  gloss:0, bevel:0,
+  label:"#94edff", reset:"#94edff", inkDark:"#a9f0fe", inkLight:"#94edff", inkZero:"#2f6b78",
+  halo:true, haloMode:"box", haloA:"#00e5ff", haloB:"#4f7bff", haloW:1, haloAlpha:0.25, halo2:true, haloScale:true,
+  gloss:0.5, bevel:0.1,
 }; }
+
+// The flat preview-v3 look: the base every theme starts from (a theme lists only what it changes).
+const FLAT={rowGrad:false,claude:"#d97757",claude2:"#ffb08a",codex:"#6e85ff",codex2:"#b1a7ff",cursor:"#d6d6d6",cursor2:"#ffffff",
+  emptyStyle:"fill",dim:"#1e1e1e",edge:"#3a3a3a",edgeW:0.5,bgGrad:"none",bg:"#000000",bg2:"#0d1220",
+  label:"#8a8a8a",reset:"#787878",inkDark:"#121212",inkLight:"#f5f5f5",inkZero:"#6e6e6e",
+  halo:false,haloMode:"box",haloA:"#ff7a4d",haloB:"#4f7bff",haloW:1,haloAlpha:0.35,halo2:true,haloScale:true,gloss:0,bevel:0,inkMode:"auto"};
 
 // Techy themes: each keeps the three roles (Claude orange, Codex blue, Cursor grey/white) and varies
 // the shades, the row gradient, the background and the native effects.
 const THEMES=[
-  ["default","Default (flat, as approved)",{}],
+  ["shipped","Shipped (v2.2)",{rowGrad:true,claude:"#f06000",claude2:"#ffd27a",codex:"#0d6ad3",codex2:"#7fe3ff",cursor:"#9fd8e6",cursor2:"#ffffff",
+    edge:"#0e4a57",edgeW:1,label:"#94edff",reset:"#94edff",inkDark:"#a9f0fe",inkLight:"#94edff",inkZero:"#2f6b78",
+    halo:true,haloMode:"box",haloA:"#00e5ff",haloW:1,haloAlpha:0.25,halo2:true,haloScale:true,gloss:0.5,bevel:0.1}],
+  ["flat","Flat (preview v3)",{}],
   ["logo","Gradient: logo colours",{rowGrad:true,claude:"#a94a2a",claude2:"#ffb08a",codex:"#3941ff",codex2:"#b1a7ff",cursor:"#6e6e6e",cursor2:"#f5f5f5"}],
   ["neon","Neon halo",{rowGrad:true,claude:"#ff5a2a",claude2:"#ffa27a",codex:"#3a5cff",codex2:"#8fa5ff",cursor:"#bdbdbd",cursor2:"#ffffff",dim:"#141414",
     halo:true,haloMode:"box",haloW:1,haloAlpha:0.4,halo2:true,label:"#9a9a9a",reset:"#808080"}],
@@ -260,7 +291,7 @@ const THEMES=[
 ];
 
 let P=load()||defaults();
-let PV={pct:SAMPLES.today.slice(),h24:false};
+let PV={pct:SAMPLES.today.slice()};
 
 // ---------------------------------------------------------------------------------------------
 // Colour helpers
@@ -330,7 +361,6 @@ function draw(){
   ctx.save(); ctx.translate(margin,margin);
   const L=layout(), b=L.box*z, R=P.rBox*z;
   rr(0,0,P.W*z,P.H*z,P.rWidget*z); ctx.fillStyle=bgFill(P.W*z,P.H*z); ctx.fill(); ctx.save(); ctx.clip();
-  const resets=PV.h24?RESETS24:RESETS12;
   const bx=(j)=>(L.bx0+j*(L.box+P.gapX))*z, by=(i)=>(L.y0+i*(L.box+P.gapY))*z;
 
   for(let i=0;i<7;i++){
@@ -358,7 +388,8 @@ function draw(){
           else ink=contrast(under,P.inkDark)>=contrast(under,P.inkLight)?P.inkDark:P.inkLight;
           ctx.font=font(P.wNum,String(pct).length>=3?P.sNum*0.86:P.sNum,z); ctx.fillStyle=ink; textMid(String(pct),x+b/2,cy); } } }
     ctx.font=font(P.wLabel,P.sLabel,z); ctx.fillStyle=P.label; textMid(ROWS[i].label,L.x0*z,cy,"left");
-    if(P.showReset){ ctx.font=font(P.wReset,P.sReset,z); ctx.fillStyle=P.reset; textMid(resets[i],(P.W-P.padX)*z,cy,"right"); }
+    if(P.showReset){ const r=RESET_SAMPLES[i];
+      ctx.font=font(P.wReset,r.t==="time"?P.sResetTime:P.sReset,z); ctx.fillStyle=P.reset; textMid(resetText(r),(P.W-P.padX)*z,cy,"right"); }
   }
   ctx.restore();
 
@@ -370,8 +401,10 @@ function draw(){
     ctx.setLineDash([]); }
   ctx.restore();
 
-  const w=[]; if(L.overflowW) w.push("boxes are wider than the space between the label and reset columns");
-  if(L.overflowH) w.push("rows are taller than the widget");
+  // Say how far, and into what: running into the padding is mild, past the widget edge is not.
+  const w=[]; if(L.overflowW) w.push("boxes run "+(L.gridW-L.availW).toFixed(1)+" dp into the label / reset columns");
+  if(L.gridH>P.H+0.01) w.push("rows are "+(L.gridH-P.H).toFixed(1)+" dp taller than the widget");
+  else if(L.overflowH) w.push("rows run "+((L.gridH-L.availH)/2).toFixed(1)+" dp into the top and bottom padding");
   if(P.halo&&P.haloW>L.haloMax+1e-6) w.push("halo capped at "+L.haloMax.toFixed(2)+" dp (half the gap) - widen the gaps for a bigger halo");
   document.getElementById("warn").textContent=w.length?"⚠ "+w.join("; ")+".":"";
   refresh();
@@ -387,7 +420,7 @@ function bindR(id,dec,themed){ const r=$(id), v=$(id+"V");
     if(id==="W"||id==="H"){ P.size="custom"; $("sizePreset").value="custom"; } if(id==="box"){ P.boxAuto=false; $("boxAuto").checked=false; } draw(); }; }
 function syncR(id,dec){ $(id).value=P[id]; $(id+"V").textContent=(+P[id]).toFixed(dec); }
 const RANGES=[["W",0],["H",0],["rWidget",1],["padX",1],["padY",1],["labelW",1],["labelGap",1],["resetGap",1],["resetW",1],
-  ["box",1],["rBox",1],["gapX",1],["gapY",1],["sLabel",1],["sNum",1],["sReset",1]];
+  ["box",1],["rBox",1],["gapX",1],["gapY",1],["sLabel",1],["sNum",1],["sReset",1],["sResetTime",1]];
 const THEMED_RANGES=[["haloW",2],["haloAlpha",2],["gloss",2],["bevel",2],["edgeW",2]];
 RANGES.forEach(([id,d])=>bindR(id,d,false)); THEMED_RANGES.forEach(([id,d])=>bindR(id,d,true));
 const COLOUR_IDS={claude:"cClaude",claude2:"cClaude2",codex:"cCodex",codex2:"cCodex2",cursor:"cCursor",cursor2:"cCursor2",dim:"cDim",edge:"cEdge",
@@ -418,9 +451,9 @@ $("zoom").oninput=function(){ P._zoom=+this.value; $("zoomV").textContent=(+this
 // Theme menu
 const themeSel=$("themeSel");
 THEMES.concat([["custom","Custom",null]]).forEach(([k,l])=>{ const o=document.createElement("option"); o.value=k; o.textContent=l; themeSel.appendChild(o); });
-function applyTheme(k){ const th=THEMES.find(t=>t[0]===k); if(!th) return; const d=defaults();
-  // A theme sets every colour and look key; anything it leaves out falls back to the default.
-  COLOUR_KEYS.concat(LOOK_KEYS).forEach(key=>{ P[key]=(key in th[2])?th[2][key]:d[key]; });
+function applyTheme(k){ const th=THEMES.find(t=>t[0]===k); if(!th) return;
+  // A theme sets every colour and look key; anything it leaves out comes from the flat base.
+  COLOUR_KEYS.concat(LOOK_KEYS).forEach(key=>{ P[key]=(key in th[2])?th[2][key]:FLAT[key]; });
   P.theme=k; syncAll(); draw(); }
 themeSel.onchange=function(){ if(this.value!=="custom") applyTheme(this.value); else { P.theme="custom"; draw(); } };
 
@@ -459,7 +492,7 @@ ROWS.forEach((r,i)=>{ const d=document.createElement("div"); d.className="row";
   d.querySelector("input").oninput=function(){ PV.pct[i]=+this.value; $("pv"+i+"V").textContent=this.value+"%"; draw(); }; });
 function syncPv(){ ROWS.forEach((r,i)=>{ $("pv"+i).value=PV.pct[i]; $("pv"+i+"V").textContent=PV.pct[i]+"%"; }); }
 $("sampleSel").onchange=function(){ PV.pct=SAMPLES[this.value].slice(); syncPv(); draw(); };
-$("h24").onchange=function(){ PV.h24=this.checked; draw(); };
+["fmtTime","fmtDay","fmtDate"].forEach(id=>{ $(id).onchange=function(){ P[id]=this.value; draw(); }; });
 
 // ---------------------------------------------------------------------------------------------
 // Settings block, persistence (this browser only), reset
@@ -475,7 +508,7 @@ function syncAll(){
   RANGES.concat(THEMED_RANGES).forEach(([id,d])=>syncR(id,d));
   for(const k in COLOUR_IDS){ $(COLOUR_IDS[k]).value=P[k]; $(COLOUR_IDS[k]+"H").value=P[k]; }
   ["rowGrad","halo","halo2","haloScale","showNums","showReset","boxAuto"].forEach(id=>$(id).checked=!!P[id]);
-  ["haloMode","inkMode","emptyStyle","bgGrad"].forEach(id=>$(id).value=P[id]);
+  ["haloMode","inkMode","emptyStyle","bgGrad","fmtTime","fmtDay","fmtDate"].forEach(id=>$(id).value=P[id]);
   themeSel.value=P.theme; ["wLabel","wNum","wReset"].forEach(id=>$(id).value=P[id]); fontSel.value=P.font;
   $("sizePreset").value=SIZE_PRESETS[P.size]?P.size:"custom"; }
 function copyOut(){ const t=$("out"); t.select(); try{ navigator.clipboard.writeText(t.value); }catch(e){ document.execCommand("copy"); }
@@ -491,6 +524,11 @@ P._zoom=3; $("zoom").value=3; $("zoomV").textContent="3.00×";
   if(q.get("theme")&&THEMES.some(t=>t[0]===q.get("theme"))) applyTheme(q.get("theme"));
   if(q.get("sample")&&SAMPLES[q.get("sample")]){ PV.pct=SAMPLES[q.get("sample")].slice(); $("sampleSel").value=q.get("sample"); }
   if(q.get("font")&&FONTS.some(f=>f.k===q.get("font"))) P.font=q.get("font"); })();
+// Folded sections persist in this browser (per heading).
+function panelState(){ try{ return JSON.parse(localStorage.getItem("usageGridEditorPanels")||"{}"); }catch(e){ return {}; } }
+document.querySelectorAll("details.panel").forEach(d=>{ const st=panelState(); if(d.dataset.k in st) d.open=!!st[d.dataset.k];
+  d.addEventListener("toggle",()=>{ const s2=panelState(); s2[d.dataset.k]=d.open; try{ localStorage.setItem("usageGridEditorPanels",JSON.stringify(s2)); }catch(e){} }); });
+function foldAll(open){ document.querySelectorAll("details.panel").forEach(d=>d.open=open); }
 syncAll(); syncPv(); renderFontTable(); draw(); setFont(P.font);
 </script>
 </body></html>
