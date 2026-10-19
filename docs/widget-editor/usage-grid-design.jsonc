@@ -1,4 +1,4 @@
-// Usage Grid widget - paste this back to me. Lengths in dp, text in sp; font = Android family name.
+// Usage Grid widget - paste this back to me. Lengths and text sizes in dp; font = Android family name.
 // computed box: 10.40 dp (manual), grid 120.2 x 98.6 dp, halo 0.90 dp
 // Eugene's design, second round (emailed 2026-10-19 "claude widget settings"); built into widget/GridDesign.kt.
 // Paste this whole block into the editor's settings box and press "Apply pasted" to edit it.

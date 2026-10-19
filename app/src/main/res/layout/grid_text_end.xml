@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One line of usage-grid text, right-aligned (the reset column); it fills the width the row
+     leaves over. UsageGridGlanceUi.GridText sets the text, colour and a dp size at runtime.
+     singleLine + ellipsize="none": never wrap and never "…". GridTextFit sizes the text to its
+     room, so this matters only for a font wider than measured; it then clips instead. -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/grid_text"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:ellipsize="none"
+    android:fontFamily="monospace"
+    android:gravity="end|center_vertical"
+    android:includeFontPadding="false"
+    android:singleLine="true" />
