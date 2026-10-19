@@ -88,11 +88,12 @@ abstract class ProviderUsageWidget(private val provider: Provider) : GlanceAppWi
     }
 
     companion object {
-        /** Re-renders every placed widget of every provider. */
+        /** Re-renders every placed widget: the three providers and the usage grid. */
         suspend fun updateAll(context: Context) {
             UsageWidget().updateAll(context)
             CodexUsageWidget().updateAll(context)
             CursorUsageWidget().updateAll(context)
+            UsageGridWidget().updateAll(context)
         }
     }
 }

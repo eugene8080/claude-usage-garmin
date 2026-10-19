@@ -47,7 +47,21 @@ data class Meter(
     val label: String,
     val utilization: Float,
     val resetsAtEpochMs: Long,
-)
+    /**
+     * Which of Orca's windows this is, independent of the display label: "session",
+     * "weekly", "fableWeekly", "monthly", or "bucket:<Orca bucket name>". The usage grid
+     * finds its fixed rows by it. Empty in snapshots stored before it existed.
+     */
+    val key: String = "",
+) {
+    companion object {
+        const val SESSION = "session"
+        const val WEEKLY = "weekly"
+        const val FABLE_WEEKLY = "fableWeekly"
+        const val MONTHLY = "monthly"
+        fun bucket(name: String) = "bucket:$name"
+    }
+}
 
 /**
  * How desktop Orca last fared fetching this provider - Orca's `ProviderRateLimitStatus`,
@@ -91,7 +105,8 @@ data class ProviderUsage(
                         JSONObject()
                             .put("label", meter.label)
                             .put("pct", meter.utilization.toDouble())
-                            .put("resetsAt", meter.resetsAtEpochMs),
+                            .put("resetsAt", meter.resetsAtEpochMs)
+                            .put("key", meter.key),
                     )
                 }
             },
@@ -114,6 +129,7 @@ data class ProviderUsage(
                         label = meter.getString("label"),
                         utilization = meter.getDouble("pct").toFloat(),
                         resetsAtEpochMs = meter.getLong("resetsAt"),
+                        key = meter.optString("key", ""),
                     )
                 },
                 status = ProviderStatus.valueOf(root.getString("status")),

@@ -26,6 +26,22 @@ class OrcaAccountsParserTest {
         assertEquals(1792300000000L, claude.updatedAtEpochMs)
     }
 
+    @Test fun `every meter carries the key of the Orca window it came from`() {
+        val usage = OrcaAccountsParser.parse(fixture()).usage
+        assertEquals(listOf("session", "weekly", "fableWeekly"), usage.getValue(Provider.CLAUDE).meters.map { it.key })
+        assertEquals(listOf("session", "weekly"), usage.getValue(Provider.CODEX).meters.map { it.key })
+        assertEquals(
+            listOf("monthly", "bucket:Cursor Models", "bucket:Other Models"),
+            usage.getValue(Provider.CURSOR).meters.map { it.key },
+        )
+    }
+
+    @Test fun `a snapshot stored before keys existed still reads, with empty keys`() {
+        val old = """{"provider":"CLAUDE","status":"OK","error":null,"updatedAt":1,""" +
+            """"meters":[{"label":"5H","pct":12.0,"resetsAt":2}]}"""
+        assertEquals("", ProviderUsage.fromJson(old)!!.meters.single().key)
+    }
+
     @Test fun `codex gets 5H and 1W`() {
         val codex = OrcaAccountsParser.parse(fixture()).usage.getValue(Provider.CODEX)
         assertEquals(listOf("5H", "1W"), labels(codex))

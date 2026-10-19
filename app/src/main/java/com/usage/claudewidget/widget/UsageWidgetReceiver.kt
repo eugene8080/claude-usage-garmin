@@ -40,3 +40,8 @@ class CodexUsageWidgetReceiver : ProviderUsageWidgetReceiver() {
 class CursorUsageWidgetReceiver : ProviderUsageWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = CursorUsageWidget()
 }
+
+/** The 2 x 1 grid of every provider (UsageGridWidget). */
+class UsageGridWidgetReceiver : ProviderUsageWidgetReceiver() {
+    override val glanceAppWidget: GlanceAppWidget = UsageGridWidget()
+}

@@ -68,24 +68,25 @@ object OrcaAccountsParser {
         val fable = window(block.optJSONObject("fableWeekly"))
         val monthly = window(block.optJSONObject("monthly"))
 
-        session?.let { meters += it.toMeter(it.label() ?: "5H") }
-        weekly?.let { meters += it.toMeter(it.label() ?: "1W") }
+        session?.let { meters += it.toMeter(it.label() ?: "5H", Meter.SESSION) }
+        weekly?.let { meters += it.toMeter(it.label() ?: "1W", Meter.WEEKLY) }
         fable?.let {
             // A per-model window is a sub-cap on the weekly pool, and its reset can be null
             // until that model is used in the period: borrow the pooled reset so the row
             // does not show a blank time.
             val resetsAt = if (it.resetsAtEpochMs != 0L) it.resetsAtEpochMs else weekly?.resetsAtEpochMs ?: 0L
-            meters += Meter("${weekly?.label() ?: "1W"} Fable", it.utilization, resetsAt)
+            meters += Meter("${weekly?.label() ?: "1W"} Fable", it.utilization, resetsAt, Meter.FABLE_WEEKLY)
         }
         monthly?.let {
             // Cursor's monthly window is its plan's overall pool; elsewhere label it by length.
-            meters += it.toMeter(if (provider == Provider.CURSOR) "Plan" else it.label() ?: "1M")
+            meters += it.toMeter(if (provider == Provider.CURSOR) "Plan" else it.label() ?: "1M", Meter.MONTHLY)
         }
         block.optJSONArray("buckets")?.let { buckets ->
             for (i in 0 until buckets.length()) {
                 val bucket = buckets.optJSONObject(i) ?: continue
                 val parsed = window(bucket) ?: continue
-                meters += parsed.toMeter(bucketLabel(bucket.optString("name")))
+                val name = bucket.optString("name")
+                meters += parsed.toMeter(bucketLabel(name), Meter.bucket(name))
             }
         }
         return meters
@@ -114,7 +115,7 @@ object OrcaAccountsParser {
     }
 
     private class ParsedWindow(val utilization: Float, val windowMinutes: Int, val resetsAtEpochMs: Long) {
-        fun toMeter(label: String) = Meter(label, utilization, resetsAtEpochMs)
+        fun toMeter(label: String, key: String) = Meter(label, utilization, resetsAtEpochMs, key)
         fun toWindow() = Window(utilization, resetsAtEpochMs)
 
         /** "5H" / "1W" / "1M" / "3D" from the window's length; null when Orca gave none. */

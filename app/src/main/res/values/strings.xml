@@ -8,4 +8,6 @@
     <string name="widget_description">Claude usage (5H / 1W / 1W Fable) from Orca on your home screen</string>
     <string name="widget_description_codex">Codex usage (5H / 1W) from Orca on your home screen</string>
     <string name="widget_description_cursor">Cursor usage (plan / Auto / API) from Orca on your home screen</string>
+    <string name="widget_label_grid">Usage grid</string>
+    <string name="widget_description_grid">Claude, Codex and Cursor at a glance: a 7 × 10 grid of 10 % boxes (2 × 1)</string>
 </resources>
