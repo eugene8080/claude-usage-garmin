@@ -2,6 +2,14 @@
 
 Updated: 2026-10-19
 
+**In the editor, not yet on the phone (2026-10-19):** the right-column formats Eugene asked for:
+- the 5H reset as a 24-hour time with no colon (`1445`), at its own size;
+- weekdays in capitals (`WED`);
+- Cursor dates as `NOV06`.
+
+They are the editor defaults (`fmtTime` / `fmtDay` / `fmtDate`, `sResetTime`). The widget gets them once he has
+settled the design and pasted the block back.
+
 **Built:** Eugene's design (2026-10-19) is in [`usage-grid-design.jsonc`](usage-grid-design.jsonc), and
 the app draws it from `GridDesign` in `app/src/main/java/com/usage/claudewidget/widget/UsageGridGlanceUi.kt`
 (gloss and bevel in `res/drawable/grid_box_overlay.xml`). To change the design:
@@ -63,7 +71,12 @@ Blur glow and bundled fonts would need the widget drawn as one picture. Eugene r
   - "fit" sizes the boxes to the space left.
 - **Address shortcut**: `usage-grid-editor.html#theme=neon&sample=busy` opens on a theme and
   sample. `font=` is also accepted.
+- **Reset column**: time / day / date formats, a separate size for the 5H time, and one size for the
+  weekday and date rows.
+- **Sections fold**: click a heading, or use **Expand all** / **Collapse all**. The open ones are
+  remembered.
 - **Copy settings** and paste the block back to the agent. **Apply pasted** reads a block back in.
-  **Reset to default** restores the approved v3 design.
+  **Reset to default** restores the shipped v2.2 design with the new reset formats. The original flat
+  look is the **Flat (preview v3)** theme.
 
 The page remembers your last design in this browser (localStorage), so a reload keeps it.
