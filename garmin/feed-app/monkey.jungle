@@ -1,0 +1,13 @@
+project.manifest = manifest.xml
+
+# The Codex + Cursor app is mostly shared code: ../shared/source-usage holds Snapshot, the
+# provider pages, the background service and Version (the same files Claude Usage builds), and
+# ../shared/resources-usage the complication icon - see ../shared/README.md. Its own source/ is
+# only the App class and the Publisher that maps meters to ITS four complication ids.
+base.sourcePath = source;../shared/source-usage
+base.resourcePath = resources;../shared/resources-usage
+
+# Per-family launcher icons (size-specific), shared by all the Garmin apps.
+fenix847mm.resourcePath = $(base.resourcePath);../shared/resources-round-454x454
+fenix8pro47mm.resourcePath = $(base.resourcePath);../shared/resources-round-454x454
+fenix843mm.resourcePath = $(base.resourcePath);../shared/resources-round-416x416

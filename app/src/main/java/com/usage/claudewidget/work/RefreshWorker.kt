@@ -18,13 +18,13 @@ class RefreshWorker(context: Context, params: WorkerParameters) :
         // Usage + link state are already persisted by the repository; just re-render.
         ProviderUsageWidget.updateAll(applicationContext)
 
-        // The watch is a second consumer of the Claude numbers, and a strictly optional one:
-        // it has no credentials and cannot fetch for itself, but a watch that is out of
-        // range must not turn a successful refresh into a retry. Only push on a fresh
-        // fetch - re-sending an unchanged snapshot would spend radio for nothing.
-        val claude = (result as? FetchResult.Success)?.claudeWatch
-        if (claude != null) {
-            when (val push = WatchBridge.push(applicationContext, claude)) {
+        // The watch is a second consumer of the numbers, and a strictly optional one: it has
+        // no credentials and cannot fetch for itself, but a watch that is out of range must
+        // not turn a successful refresh into a retry. Only push after Orca answered - when
+        // it did not, re-sending the stored snapshot would spend radio for nothing.
+        val watch = (result as? FetchResult.Success)?.watch
+        if (watch != null && !watch.isEmpty) {
+            when (val push = WatchBridge.push(applicationContext, watch)) {
                 is WatchBridge.PushResult.Sent -> Log.i(TAG, "watch updated: ${push.deviceName}")
                 else -> Log.i(TAG, "watch not updated: $push")
             }

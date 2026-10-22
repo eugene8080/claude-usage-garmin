@@ -8,10 +8,12 @@ import org.json.JSONObject
 
 sealed interface FetchResult {
     data class Success(
+        /** Merged: a provider with no fresh numbers keeps its last ones (see keepLastMeters). */
         val usage: Map<Provider, ProviderUsage>,
-        /** Claude's numbers for the Garmin watch; null when Orca had no Claude windows. */
-        val claudeWatch: UsageSnapshot?,
-    ) : FetchResult
+    ) : FetchResult {
+        /** What the Garmin watch apps get, cut from the merged [usage]. */
+        val watch: WatchSnapshot get() = WatchSnapshot.from(usage)
+    }
 
     /** Not paired, or desktop Orca refused this device: the user must pair (again). */
     data class NeedsPairing(val reason: String) : FetchResult
@@ -58,7 +60,7 @@ class UsageRepository(
                 storage.saveUsage(merged.values)
                 storage.linkSuccessAt = System.currentTimeMillis()
                 record(LinkState.OK, "")
-                FetchResult.Success(merged, parsed.claudeWatch)
+                FetchResult.Success(merged)
             }
             is OrcaCallResult.Unauthorized -> {
                 record(LinkState.NEEDS_PAIRING, result.reason)

@@ -72,7 +72,7 @@ class ClaudeUsageGlanceView extends WatchUi.GlanceView {
             );
         }
 
-        if (Snapshot.isStale()) {
+        if (Snapshot.isStale(Snapshot.K_FETCHED)) {
             // A small dot rather than text: the numbers are still worth showing, they just
             // should not be trusted to the minute. Kept inside the inset so the round bezel
             // does not eat it.

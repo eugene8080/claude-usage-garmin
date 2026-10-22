@@ -20,8 +20,8 @@ data class ModelWindow(
 
 /**
  * Claude's three meters in the shape the Garmin watch expects (garmin/CONTRACT.md, built by
- * WatchBridge.payloadOf). The watch stays Claude-only; this is cut from the Claude
- * [ProviderUsage] by [OrcaAccountsParser.claudeWatchSnapshot].
+ * WatchBridge.payloadOf). The Claude block of a [WatchSnapshot], cut from the Claude
+ * [ProviderUsage] by [WatchSnapshot.from].
  */
 data class UsageSnapshot(
     val fiveHour: Window,
@@ -60,6 +60,13 @@ data class Meter(
         const val FABLE_WEEKLY = "fableWeekly"
         const val MONTHLY = "monthly"
         fun bucket(name: String) = "bucket:$name"
+
+        /**
+         * Orca's names for Cursor's two pools: Auto/Composer and API (Orca's
+         * cursor-usage-mapping.ts: autoPercentUsed / apiPercentUsed).
+         */
+        const val CURSOR_AUTO_POOL = "Cursor Models"
+        const val CURSOR_API_POOL = "Other Models"
     }
 }
 

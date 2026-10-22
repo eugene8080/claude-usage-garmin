@@ -1,11 +1,14 @@
 project.manifest = manifest.xml
 
-base.sourcePath = source
-base.resourcePath = resources
+# ../shared/source-usage is the code both watch apps share (Snapshot, the provider pages, the
+# background service, Version) and ../shared/resources-usage the complication icon - see
+# ../shared/README.md. This app adds its own App class, glance and Publisher (source/).
+base.sourcePath = source;../shared/source-usage
+base.resourcePath = resources;../shared/resources-usage
 
 # The launcher icon must match each device's exact pixel size, so it lives in a
 # per-family resource folder rather than in `resources` - a single icon there
-# would be the wrong size on some targets. All three Garmin apps use the same
+# would be the wrong size on some targets. All the Garmin apps use the same
 # icon, so the per-family folders are shared (garmin/shared/, see its README).
 # Paths are relative to this file. `resources` (strings) is listed first on every path.
 fenix847mm.resourcePath = $(base.resourcePath);../shared/resources-round-454x454

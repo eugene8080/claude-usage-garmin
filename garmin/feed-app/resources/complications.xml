@@ -1,0 +1,39 @@
+<complications>
+    <!--
+      The Codex + Cursor app's four complications - Connect IQ's limit per app. Public access,
+      so any watchface can place them. The numeric ids are the handle updateComplication()
+      writes to (see source/Publisher.mc) and MUST stay stable across versions.
+
+      value/shortLabel/unit are set at runtime from the pushed snapshot; unit carries the
+      reset time as an epoch-seconds string, as Claude Usage's do. Ids and longLabels are the
+      contract with the faces (garmin/CONTRACT.md): no label here may contain "Claude", or the
+      Claude faces would take it for a Claude meter.
+    -->
+    <complication id="0" access="public"
+        longLabel="@Strings.compCodexFiveLong" shortLabel="@Strings.compCodexFiveShort"
+        icon="@Drawables.ComplicationIcon">
+        <faceIt defaultText="@Strings.compCodexFiveFace" />
+        <range><value>0</value><value>50</value><value>80</value><value>100</value></range>
+    </complication>
+
+    <complication id="1" access="public"
+        longLabel="@Strings.compCodexWeekLong" shortLabel="@Strings.compCodexWeekShort"
+        icon="@Drawables.ComplicationIcon">
+        <faceIt defaultText="@Strings.compCodexWeekFace" />
+        <range><value>0</value><value>50</value><value>80</value><value>100</value></range>
+    </complication>
+
+    <complication id="2" access="public"
+        longLabel="@Strings.compCursorPlanLong" shortLabel="@Strings.compCursorPlanShort"
+        icon="@Drawables.ComplicationIcon">
+        <faceIt defaultText="@Strings.compCursorPlanFace" />
+        <range><value>0</value><value>50</value><value>80</value><value>100</value></range>
+    </complication>
+
+    <complication id="3" access="public"
+        longLabel="@Strings.compCursorAutoLong" shortLabel="@Strings.compCursorAutoShort"
+        icon="@Drawables.ComplicationIcon">
+        <faceIt defaultText="@Strings.compCursorAutoFace" />
+        <range><value>0</value><value>50</value><value>80</value><value>100</value></range>
+    </complication>
+</complications>

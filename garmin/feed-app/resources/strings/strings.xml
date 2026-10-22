@@ -1,0 +1,23 @@
+<strings>
+    <string id="AppName">Codex + Cursor</string>
+
+    <!-- Complication labels. shortLabel is capped at 5 characters (radial display).
+         The *Long labels are an API, as Claude Usage's are (garmin/CONTRACT.md): faces find
+         complications by words in them. None may contain "Claude" - the Claude faces take any
+         label with that word for a Claude meter; garmin/tools/check_contract.py checks it. -->
+    <string id="compCodexFiveLong">Codex 5-hour usage</string>
+    <string id="compCodexFiveShort">5H</string>
+    <string id="compCodexFiveFace">Codex 5H</string>
+
+    <string id="compCodexWeekLong">Codex weekly usage</string>
+    <string id="compCodexWeekShort">1W</string>
+    <string id="compCodexWeekFace">Codex 1W</string>
+
+    <string id="compCursorPlanLong">Cursor plan usage</string>
+    <string id="compCursorPlanShort">Plan</string>
+    <string id="compCursorPlanFace">Cursor plan</string>
+
+    <string id="compCursorAutoLong">Cursor Auto usage</string>
+    <string id="compCursorAutoShort">Auto</string>
+    <string id="compCursorAutoFace">Cursor Auto</string>
+</strings>

@@ -81,9 +81,9 @@ If a watch send is still stopped by the phone later, the prompt comes back and t
 
 ## ⌚ On your Garmin watch
 
-<sub>Updated: 2026-09-27 · Built and tested on a tactix 8 (the `fenix847mm` Connect IQ profile); also builds for fēnix 8 43 mm and fēnix 8 Pro 47 mm (the Solar models are not targeted).</sub>
+<sub>Updated: 2026-10-22 · Built and tested on a tactix 8 (the `fenix847mm` Connect IQ profile); also builds for fēnix 8 43 mm and fēnix 8 Pro 47 mm (the Solar models are not targeted).</sub>
 
-Three Connect IQ projects, all under [`garmin/`](garmin/), put the same usage numbers on a fēnix 8 / tactix 8 class watch:
+Four Connect IQ projects, all under [`garmin/`](garmin/), put the same usage numbers on a fēnix 8 / tactix 8 class watch:
 
 <p align="center">
 <img src="docs/watchfaces.png" alt="The Claude Grid and Claude Terminal watch faces on a tactix 8" width="720" />
@@ -91,7 +91,8 @@ Three Connect IQ projects, all under [`garmin/`](garmin/), put the same usage nu
 
 | Project | What it is |
 | --- | --- |
-| [`garmin/watch-app/`](garmin/watch-app/README.md) | **Claude Usage** — a glance showing the `5H` / `1W` / per-model meters with their reset times, and the **publisher**: it receives the numbers from the phone and republishes them as three watch **complications** that faces can show. |
+| [`garmin/watch-app/`](garmin/watch-app/README.md) | **Claude Usage** — a glance showing the `5H` / `1W` / per-model meters with their reset times; open it for **one page per provider: Claude, Codex, Cursor**. Also the **publisher**: it receives the numbers from the phone and republishes them as four watch **complications** that faces can show (Claude's three and Cursor API). |
+| [`garmin/feed-app/`](garmin/feed-app/README.md) | **Codex + Cursor** — publishes four more complications: Codex `5H` and `1W`, Cursor plan and Auto. Connect IQ allows four per app, so these need a second one. Opening it shows the Codex and Cursor pages. Optional: install it only if a face should show Codex or Cursor. |
 | [`garmin/faces/grid/`](garmin/faces/grid/editor/README.md) | **Claude Grid** — an Iron Grit–style data face: a big stacked time, battery arc, seconds dial and **eight editable data fields** that take *any* complication. |
 | [`garmin/faces/terminal/`](garmin/faces/terminal/README.md) | **Claude Terminal** — a CLI-styled face: a prompt line, the time, the date, the three Claude meters as terminal rows with bars, percentages and reset times, and a battery bar. |
 
@@ -102,11 +103,16 @@ serves the faces the Hong Kong Observatory's minute readings, and
 [`garmin/CONTRACT.md`](garmin/CONTRACT.md) pins down every value the phone, the watch app and the
 faces must agree on — checked in CI by `garmin/tools/check_contract.py`.
 
-**How the numbers get there.** The watch never talks to Claude (Cloudflare and credential safety
-both rule it out — see the watch-app README). The phone app pushes the percentages over Bluetooth
-to the **Claude Usage** watch app, which publishes them as complications every 5 minutes. A watch
+**How the numbers get there.** The watch never talks to Claude, Codex or Cursor (Cloudflare and
+credential safety both rule it out — see the watch-app README). The phone app pushes the
+percentages over Bluetooth to the **Claude Usage** watch app — and, when it is installed, to
+**Codex + Cursor** — which publish them as complications on every push and every 5 minutes. A watch
 face can't receive phone pushes itself, so both faces **subscribe to those complications** — which
 is why the watch app must be installed (and opened once) for the faces to show Claude usage.
+
+Claude Grid's data fields take the Codex and Cursor complications too (hold the face → edit a
+field), drawn as a plain number: no `%` and no ring fill, which it keeps for Claude's meters.
+Claude Terminal shows only its three Claude rows.
 
 ### Claude Usage (the glance)
 
@@ -122,7 +128,11 @@ is why the watch app must be installed (and opened once) for the faces to show C
   ~5 minutes, which is what feeds Claude Grid's and Claude Terminal's meters.
 - The version number at the top of the glance confirms which build is on the watch — handy
   since a sideload doesn't show up in Garmin Connect the way a store install does.
-- **Hold a Claude meter on either face** and this app opens, with the countdown to each reset.
+- **Open it** (press the glance) for three pages — **Claude**, **Codex** (`5H`, `1W`) and
+  **Cursor** (plan, `Auto`, `API`) — each with its bars, reset times and how old the numbers are.
+  Swipe or press up/down to turn the page. A window Orca doesn't report is left out, and a
+  provider the phone has no numbers for shows *"No Codex data"*.
+- **Hold a meter on a face** and its app opens on that provider's page.
 
 ### Claude Grid
 
@@ -218,11 +228,13 @@ is built into the face.
 ### Install on the watch
 
 Download the `.prg` for your watch from the [latest release](https://github.com/eugene8080/claude-usage-garmin/releases/latest)
-(`ClaudeUsage-*` is the watch app, `ClaudeGrid-*` / `ClaudeFace-*` the two faces; `fenix847mm` is the
-fēnix 8 / tactix 8 47 & 51 mm) or build one (below). Connect the watch by USB with its screen
-**awake and unlocked** and drag the file into **`GARMIN/Apps`**. Install the watch app and whichever
-face(s) you want; pick the face from the watch's face list. From a checkout on Windows,
-`python garmin/tools/sideload.py grid terminal app` does the copy for you: it takes each project's
+(`ClaudeUsage-*` is the watch app, `CodexCursor-*` the Codex + Cursor app, `ClaudeGrid-*` /
+`ClaudeFace-*` the two faces; `fenix847mm` is the fēnix 8 / tactix 8 47 & 51 mm) or build one (below).
+Connect the watch by USB with its screen **awake and unlocked** and drag the file into
+**`GARMIN/Apps`**. Install the watch app and whichever face(s) you want — and Codex + Cursor if a
+face should show those — then **open each app once** so it registers its background publisher; pick
+the face from the watch's face list. From a checkout on Windows,
+`python garmin/tools/sideload.py grid terminal app feed` does the copy for you: it takes each project's
 newest build for your watch, prints how old it is, and confirms the file reached the watch
 (`--list` shows what it would pick).
 
@@ -247,6 +259,8 @@ reached the watch. **Test fetch now** runs a fetch and a send on the spot.
   and **Allow auto launch** — and the same for **Garmin Connect**.
 - ***"no watch connected"*** — Bluetooth is off or Garmin Connect lost the watch; open Garmin Connect.
 - ***"Claude Usage app is not installed on the watch"*** — sideload `ClaudeUsage-*.prg` (above).
+- ***"sent to … (Codex + Cursor app not installed)"*** — Claude Usage got the numbers; the Codex and
+  Cursor complications won't update until `CodexCursor-*.prg` is installed. Harmless if no face shows them.
 
 ---
 
@@ -270,7 +284,7 @@ Neither Anthropic, OpenAI nor Cursor offers a public API for subscription usage,
 
 ## 🛠 How it works
 
-Desktop Orca already fetches every provider's usage with the sign-ins on your computer (Claude Code's login, Codex's, Cursor's). The phone pairs with Orca as one more mobile device — the pairing QR carries the computer's address, a device token, and Orca's public key — and every ~15 minutes a `WorkManager` job opens Orca's mobile WebSocket (port 6768), runs Orca's E2EE v2 handshake (X25519 + HKDF-SHA256, XSalsa20-Poly1305 frames, pinned to the paired key), and makes one `accounts.list` call with `refreshUsage`. The reply holds each provider's windows as `{usedPercent, windowMinutes, resetsAt}`; the app stores them per provider, re-renders the widgets, and pushes the Claude numbers to the watch. When Orca can't be reached (computer off, no Tailscale) the widgets keep their last numbers and show the stale dot once they are over 31 minutes old; when Orca refuses the device (revoked) they show *“Tap to pair with Orca”*. The protocol details and how they were verified are in [docs/orca-protocol.md](docs/orca-protocol.md).
+Desktop Orca already fetches every provider's usage with the sign-ins on your computer (Claude Code's login, Codex's, Cursor's). The phone pairs with Orca as one more mobile device — the pairing QR carries the computer's address, a device token, and Orca's public key — and every ~15 minutes a `WorkManager` job opens Orca's mobile WebSocket (port 6768), runs Orca's E2EE v2 handshake (X25519 + HKDF-SHA256, XSalsa20-Poly1305 frames, pinned to the paired key), and makes one `accounts.list` call with `refreshUsage`. The reply holds each provider's windows as `{usedPercent, windowMinutes, resetsAt}`; the app stores them per provider, re-renders the widgets, and pushes the numbers to the watch apps. When Orca can't be reached (computer off, no Tailscale) the widgets keep their last numbers and show the stale dot once they are over 31 minutes old; when Orca refuses the device (revoked) they show *“Tap to pair with Orca”*. The protocol details and how they were verified are in [docs/orca-protocol.md](docs/orca-protocol.md).
 
 The widget picks a layout from the size you resize it to. A **Full** layout stacks the meters, each with its label, bar, percentage and *“resets in”* — down to a single home-screen row, where it tightens its type and spacing to fit the title and all three meters (the layout reads the widget's exact size rather than snapping to preset buckets); a **Short** layout sets the three meters side by side for a widget squeezed below a normal row; and a **Compact** layout stacks mini bars for a narrow widget. The Claude mark and title appear once there's height to fit them, and *“resets in”* shortens to a bare countdown when narrow. All three adapt to light and dark themes, and a small amber dot appears when the numbers are stale.
 

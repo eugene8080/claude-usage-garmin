@@ -7,7 +7,8 @@ import com.garmin.android.connectiq.IQApp
 import com.garmin.android.connectiq.IQDevice
 import com.usage.claudewidget.BuildConfig
 import com.usage.claudewidget.data.Storage
-import com.usage.claudewidget.data.UsageSnapshot
+import com.usage.claudewidget.data.WatchSnapshot
+import com.usage.claudewidget.data.Window
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -24,15 +25,20 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.resume
 
 /**
- * Pushes the usage snapshot to the Garmin watch app over BLE, via Garmin Connect Mobile.
+ * Pushes the usage snapshot to the Garmin watch apps over BLE, via Garmin Connect Mobile.
  *
- * This is the only thing that ever reaches the watch. The watch app holds no credentials and
- * makes no web requests - see garmin/watch-app/README.md for why that is not negotiable - so
+ * This is the only thing that ever reaches the watch. The watch apps hold no credentials and
+ * make no web requests - see garmin/watch-app/README.md for why that is not negotiable - so
  * if this push does not happen, the watch goes stale.
  *
- * The app id and the message keys are one side of a contract with the watch app, written down
- * in garmin/CONTRACT.md and checked in CI by garmin/tools/check_contract.py: change either here
- * and the watch side (and that file) must change in the same commit.
+ * Two apps get the same message: the watch app (Claude Usage: the glance, the three provider
+ * pages and four complications) and, after it, the Codex + Cursor app, which exists only to
+ * publish four more complications - Connect IQ caps one app at four. The second is optional:
+ * it is tried once, after the first push is settled, and never fails or retries it.
+ *
+ * The app ids and the message keys are one side of a contract with the watch apps, written
+ * down in garmin/CONTRACT.md and checked in CI by garmin/tools/check_contract.py: change either
+ * here and the watch side (and that file) must change in the same commit.
  *
  * Every failure here is swallowed and logged. A watch that is out of range, a Garmin Connect
  * Mobile that is not installed, a watch app that was never sideloaded: none of those are
@@ -44,6 +50,15 @@ object WatchBridge {
     /** Must match `id` in garmin/watch-app/manifest.xml; the watch app is addressed by this (garmin/CONTRACT.md). */
     private const val WATCH_APP_ID = "8a5bd20e02f34f58afb5f357a23a4a65"
 
+    /**
+     * Must match `id` in garmin/feed-app/manifest.xml: the Codex + Cursor app, which publishes
+     * the Codex and Cursor complications the watch app has no room for (garmin/CONTRACT.md).
+     */
+    private const val FEED_APP_ID = "43bb7ac1ca954af9a00dfff271303aee"
+
+    /** How the phone's status line names the Codex + Cursor app. */
+    private const val FEED_APP_NAME = "Codex + Cursor app"
+
     private const val TAG = "ClaudeWatch"
 
     /**
@@ -53,6 +68,19 @@ object WatchBridge {
      * kills it.
      */
     private const val ATTEMPT_TIMEOUT_MS = 15_000L
+
+    /**
+     * Deadline for the Codex + Cursor app's single attempt. Shorter than the watch app's: the
+     * SDK is already bound by then, so only the device query and the send remain, and nothing
+     * waits on this app.
+     */
+    private const val FEED_TIMEOUT_MS = 10_000L
+
+    /**
+     * A window the phone has no numbers for, inside a Codex or Cursor key group: the watch
+     * leaves that row (and complication) empty instead of drawing 0 %.
+     */
+    private const val NO_WINDOW = -1
 
     /**
      * Pause before the single retry. Long enough for a BLE link that dropped for a moment
@@ -70,28 +98,48 @@ object WatchBridge {
     private const val REASON_STOPPED_BY_SYSTEM = "stopped-by-system"
 
     sealed interface PushResult {
-        data class Sent(val deviceName: String) : PushResult
+        /** The watch app took it. [feed] is how the Codex + Cursor app on the watch fared. */
+        data class Sent(val deviceName: String, val feed: Feed = Feed.NOT_INSTALLED) : PushResult
         /** Nothing to talk to: no connected watch, SDK unavailable, or app not installed. */
         data class NoTarget(val reason: String) : PushResult
         data class Failed(val reason: String) : PushResult
     }
 
+    /** The Codex + Cursor app's outcome. It is optional, so it only ever annotates [PushResult.Sent]. */
+    enum class Feed { SENT, NOT_INSTALLED, FAILED }
+
     /**
-     * Send [snapshot] to every connected watch that has the app installed, retrying once
-     * after [RETRY_DELAY_MS] when the first attempt failed for a reason that can clear by
-     * itself (link down, timeout, SDK hiccup). The final outcome is persisted for the phone
-     * app's status line.
+     * Send [snapshot] to every connected watch that has the watch app installed, retrying
+     * once after [RETRY_DELAY_MS] when the first attempt failed for a reason that can clear by
+     * itself (link down, timeout, SDK hiccup); then, once, to the Codex + Cursor app. The final
+     * outcome is persisted for the phone app's status line.
      *
      * Returns rather than throws; the caller is expected to log and carry on.
      */
-    suspend fun push(context: Context, snapshot: UsageSnapshot): PushResult {
+    suspend fun push(context: Context, snapshot: WatchSnapshot): PushResult {
         val app = context.applicationContext
+        val payload = payloadOf(snapshot)
+        // The watch app's settled outcome, kept outside the try so a cancellation during the
+        // feed step does not overwrite a push that already landed.
+        var main: PushResult? = null
         try {
-            var result = attempt(app, snapshot)
+            var result = attempt(app, payload, WATCH_APP_ID, ATTEMPT_TIMEOUT_MS)
             if (isRetryable(result)) {
                 Log.i(TAG, "push attempt 1 -> $result; retrying in ${RETRY_DELAY_MS}ms")
                 delay(RETRY_DELAY_MS)
-                result = attempt(app, snapshot)
+                result = attempt(app, payload, WATCH_APP_ID, ATTEMPT_TIMEOUT_MS)
+            }
+            main = result
+            // Second, so it can neither delay nor fail the watch app's push; one try, no retry.
+            // Only after a push that landed: otherwise the watch is unreachable or the SDK
+            // is down, and a second attempt would just spend another timeout finding that out.
+            if (result is PushResult.Sent) {
+                val feed = when (val f = attempt(app, payload, FEED_APP_ID, FEED_TIMEOUT_MS)) {
+                    is PushResult.Sent -> Feed.SENT
+                    is PushResult.NoTarget -> Feed.NOT_INSTALLED
+                    is PushResult.Failed -> Feed.FAILED.also { Log.i(TAG, "Codex + Cursor app push -> $f") }
+                }
+                result = result.copy(feed = feed)
             }
             record(app, result)
             return result
@@ -101,15 +149,25 @@ object WatchBridge {
             // job with it (seen on-device 2026-09-25: fetch + widget done in ~1 s, push
             // cancelled at +5 s, every time). Record that distinctly - it is a phone setting
             // problem, not a watch or Bluetooth one - then let the cancellation propagate as
-            // coroutines require. record() is synchronous, so it still runs here.
-            record(app, PushResult.Failed(REASON_STOPPED_BY_SYSTEM))
+            // coroutines require. record() is synchronous, so it still runs here. If the watch
+            // app already had its push, only the Codex + Cursor app missed out.
+            val settled = main
+            record(
+                app,
+                if (settled is PushResult.Sent) settled.copy(feed = Feed.FAILED)
+                else PushResult.Failed(REASON_STOPPED_BY_SYSTEM),
+            )
             throw e
         }
     }
 
     /** One user-facing phrase for [result], shared by the app's status line and debug text. */
     fun describe(result: PushResult): String = when (result) {
-        is PushResult.Sent -> "sent to ${result.deviceName}"
+        is PushResult.Sent -> "sent to ${result.deviceName}" + when (result.feed) {
+            Feed.SENT -> " + $FEED_APP_NAME"
+            Feed.NOT_INSTALLED -> " ($FEED_APP_NAME not installed)"
+            Feed.FAILED -> " ($FEED_APP_NAME missed it)"
+        }
         is PushResult.NoTarget -> when {
             result.reason == REASON_NO_DEVICE ->
                 "no watch connected (check Bluetooth and Garmin Connect)"
@@ -149,7 +207,13 @@ object WatchBridge {
         }
     }
 
-    private suspend fun attempt(context: Context, snapshot: UsageSnapshot): PushResult =
+    /** One push of [payload] to the app [appId] on every connected watch, bounded by [timeoutMs]. */
+    private suspend fun attempt(
+        context: Context,
+        payload: Map<String, Any>,
+        appId: String,
+        timeoutMs: Long,
+    ): PushResult =
         withContext(Dispatchers.IO) {
             // Must NOT be the main thread. The tethered strategy does its own blocking TCP
             // inside getConnectedDevices()/sendMessage() - it talks to the simulator over an
@@ -157,11 +221,11 @@ object WatchBridge {
             // NetworkOnMainThreadException. The SDK delivers its callbacks on the main
             // looper either way, which is all it actually needs the main thread for.
             try {
-                withTimeout(ATTEMPT_TIMEOUT_MS) { attemptInternal(context, snapshot) }
+                withTimeout(timeoutMs) { attemptInternal(context, payload, appId) }
             } catch (e: TimeoutCancellationException) {
                 // Must precede the CancellationException rethrow below: a timeout is OUR
                 // deadline (a result), not the caller being cancelled.
-                Log.w(TAG, "push timed out after ${ATTEMPT_TIMEOUT_MS}ms")
+                Log.w(TAG, "push to $appId timed out after ${timeoutMs}ms")
                 // A wedged handshake may mean the SDK's service binding is stale; start the
                 // next attempt from a clean initialise rather than reusing it.
                 Sdk.reset(context)
@@ -179,7 +243,7 @@ object WatchBridge {
             }
         }
 
-    private suspend fun attemptInternal(context: Context, snapshot: UsageSnapshot): PushResult {
+    private suspend fun attemptInternal(context: Context, payload: Map<String, Any>, appId: String): PushResult {
         val connectIQ = when (val s = Sdk.acquire(context)) {
             is Sdk.Acquired.Ready -> s.connectIQ
             is Sdk.Acquired.Unavailable -> return PushResult.NoTarget(REASON_SDK_PREFIX + s.why)
@@ -190,18 +254,17 @@ object WatchBridge {
             return PushResult.NoTarget(REASON_NO_DEVICE)
         }
 
-        val payload = payloadOf(snapshot)
         var result: PushResult = PushResult.NoTarget(REASON_APP_NOT_INSTALLED)
 
         for (device in devices) {
             // getApplicationInfo is what reports whether our app is sideloaded on THIS watch.
             // Sending to a device without it silently goes nowhere, so ask first.
-            val app = awaitApplicationInfo(connectIQ, device) ?: continue
+            val app = awaitApplicationInfo(connectIQ, device, appId) ?: continue
             val sent = awaitSend(connectIQ, device, app, payload)
             if (sent is PushResult.Sent) {
-                Log.i(TAG, "pushed to ${device.friendlyName}")
+                Log.i(TAG, "pushed $appId to ${device.friendlyName}")
             } else {
-                Log.w(TAG, "push to ${device.friendlyName} -> $sent")
+                Log.w(TAG, "push $appId to ${device.friendlyName} -> $sent")
             }
             // Any watch that took it counts as success; a second, offline watch must not
             // overwrite that with its own failure.
@@ -215,33 +278,69 @@ object WatchBridge {
     /**
      * The payload the watch's Snapshot.store() expects. Keys are terse because a Connect IQ
      * message is small and this crosses a BLE link; they are mirrored verbatim in
-     * garmin/watch-app/source/Snapshot.mc, and listed in garmin/CONTRACT.md. The checker there
-     * also enforces the shape below: the per-model keys only inside the null-guard.
+     * garmin/shared/source-usage/Snapshot.mc, and listed in garmin/CONTRACT.md.
+     *
+     * Each `payload += mapOf(...)` below is one key GROUP, and a group travels whole or not at
+     * all: the watch stores a group only when every key of it arrived, and clears a group that
+     * is absent, so a provider the phone has no numbers for is blanked rather than left stale.
+     * garmin/tools/check_contract.py reads these literals as the groups, so add a key inside
+     * its group's literal, never as a lone `payload["k"] = ...`.
      *
      * Percentages are rounded to whole numbers here rather than on the watch: the watch
      * renders what it is given, and this keeps the phone as the single place that decides
-     * how a figure is presented.
+     * how a figure is presented. Times are epoch SECONDS: Monkey C's Number is 32-bit, so epoch
+     * milliseconds would overflow it, and Time.now().value() on the watch is seconds too.
      */
-    private fun payloadOf(snapshot: UsageSnapshot): Map<String, Any> {
-        val payload = mutableMapOf<String, Any>(
-            "fh" to snapshot.fiveHour.utilization.toSafeInt(),
-            "fhr" to snapshot.fiveHour.resetsAtEpochMs.toEpochSeconds(),
-            "wk" to snapshot.sevenDay.utilization.toSafeInt(),
-            "wkr" to snapshot.sevenDay.resetsAtEpochMs.toEpochSeconds(),
-            // Epoch SECONDS: Monkey C's Number is 32-bit, so epoch milliseconds would
-            // overflow it. Time.now().value() on the watch is seconds too.
-            "ts" to snapshot.fetchedAtEpochMs.toEpochSeconds(),
-        )
-        val model = snapshot.modelWeekly
-        if (model != null) {
-            payload["mw"] = model.window.utilization.toSafeInt()
-            payload["mwr"] = model.window.resetsAtEpochMs.toEpochSeconds()
-            payload["mwn"] = model.modelName
+    // internal, not private, only so WatchBridgePayloadTest can check the groups' values.
+    internal fun payloadOf(snapshot: WatchSnapshot): Map<String, Any> {
+        val payload = mutableMapOf<String, Any>()
+        snapshot.claude?.let { claude ->
+            payload += mapOf(
+                "fh" to claude.fiveHour.utilization.toSafeInt(),
+                "fhr" to claude.fiveHour.resetsAtEpochMs.toEpochSeconds(),
+                "wk" to claude.sevenDay.utilization.toSafeInt(),
+                "wkr" to claude.sevenDay.resetsAtEpochMs.toEpochSeconds(),
+                "ts" to claude.fetchedAtEpochMs.toEpochSeconds(),
+            )
+            // Inside the Claude block: a model cap is only drawn on the Claude page. Without a
+            // cap the keys are omitted, which the watch treats as "clear that meter".
+            claude.modelWeekly?.let { model ->
+                payload += mapOf(
+                    "mw" to model.window.utilization.toSafeInt(),
+                    "mwr" to model.window.resetsAtEpochMs.toEpochSeconds(),
+                    "mwn" to model.modelName,
+                )
+            }
         }
-        // When there is no per-model cap the keys are omitted entirely; the watch treats a
-        // payload without them as "clear that meter" rather than "leave the last value".
+        // Codex and Cursor carry every window in their group, sending NO_WINDOW for one Orca
+        // did not report: a missing window is common (Codex had no 5-hour window on
+        // 2026-10-19) and must not drop the provider's other numbers with it.
+        snapshot.codex?.let { codex ->
+            payload += mapOf(
+                "xfh" to codex.fiveHour.pct(),
+                "xfhr" to codex.fiveHour.resetSec(),
+                "xwk" to codex.weekly.pct(),
+                "xwkr" to codex.weekly.resetSec(),
+                "xts" to codex.fetchedAtEpochMs.toEpochSeconds(),
+            )
+        }
+        snapshot.cursor?.let { cursor ->
+            payload += mapOf(
+                "upl" to cursor.plan.pct(),
+                "uplr" to cursor.plan.resetSec(),
+                "uau" to cursor.auto.pct(),
+                "uaur" to cursor.auto.resetSec(),
+                "uap" to cursor.api.pct(),
+                "uapr" to cursor.api.resetSec(),
+                "uts" to cursor.fetchedAtEpochMs.toEpochSeconds(),
+            )
+        }
         return payload
     }
+
+    private fun Window?.pct(): Int = this?.utilization?.toSafeInt() ?: NO_WINDOW
+
+    private fun Window?.resetSec(): Int = this?.resetsAtEpochMs?.toEpochSeconds() ?: 0
 
     private fun Float.toSafeInt(): Int = this.coerceIn(0f, 100f).toInt()
 
@@ -409,18 +508,18 @@ object WatchBridge {
     // resumed once, so each wrapper below guards with an AtomicBoolean rather than trusting
     // the SDK to call back exactly once.
 
-    private suspend fun awaitApplicationInfo(connectIQ: ConnectIQ, device: IQDevice): IQApp? =
+    private suspend fun awaitApplicationInfo(connectIQ: ConnectIQ, device: IQDevice, appId: String): IQApp? =
         suspendCancellableCoroutine { cont ->
             val done = AtomicBoolean(false)
             connectIQ.getApplicationInfo(
-                WATCH_APP_ID,
+                appId,
                 device,
                 object : ConnectIQ.IQApplicationInfoListener {
                     override fun onApplicationInfoReceived(app: IQApp) =
                         cont.resumeOnce(done, app)
 
                     override fun onApplicationNotInstalled(applicationId: String) {
-                        Log.i(TAG, "watch app not installed on ${device.friendlyName}")
+                        Log.i(TAG, "app $applicationId not installed on ${device.friendlyName}")
                         cont.resumeOnce(done, null)
                     }
                 },

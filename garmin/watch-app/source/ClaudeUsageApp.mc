@@ -1,20 +1,31 @@
 import Toybox.Application;
-import Toybox.Background;
 import Toybox.Communications;
 import Toybox.Lang;
 import Toybox.System;
-import Toybox.Time;
 import Toybox.WatchUi;
 
-//! Claude usage on the wrist, fed entirely by the Android companion app over BLE.
+//! Claude, Codex and Cursor usage on the wrist, fed entirely by the Android companion app
+//! over BLE.
 //!
 //! There is no network code here on purpose - see Snapshot.mc for why the watch must not
-//! authenticate. The app's whole job is: receive a message, persist it, redraw.
+//! authenticate. The app's whole job is: receive a message, persist it, redraw. Its glance is
+//! Claude's; opening it shows one page per provider.
 class ClaudeUsageApp extends Application.AppBase {
+
+    //! The pages, in order (UsageApp page ids).
+    private const PAGES = [UsageApp.CLAUDE, UsageApp.CODEX, UsageApp.CURSOR];
+
+    //! The page each of this app's complications belongs to, by complication id
+    //! (resources/complications.xml): 0-2 Claude, 3 Cursor API.
+    private const PAGE_FOR_COMPLICATION = [UsageApp.CLAUDE, UsageApp.CLAUDE, UsageApp.CLAUDE,
+        UsageApp.CURSOR];
 
     //! Held in a field because registerForPhoneAppMessages keeps a weak reference to the
     //! callback; a Method built inline would be collected and messages would stop arriving.
     private var _phoneMethod as Method(msg as PhoneAppMessage) as Void;
+
+    //! The page to open on, from how the app was launched (onStart runs before getInitialView).
+    private var _startPage as Number = 0;
 
     public function initialize() {
         AppBase.initialize();
@@ -29,7 +40,8 @@ class ClaudeUsageApp extends Application.AppBase {
     }
 
     public function onStart(state as Dictionary?) as Void {
-        registerComplicationPublishing();
+        UsageApp.registerPublishing();
+        _startPage = UsageApp.startPage(state, PAGES, PAGE_FOR_COMPLICATION);
     }
 
     public function onStop(state as Dictionary?) as Void {
@@ -38,35 +50,11 @@ class ClaudeUsageApp extends Application.AppBase {
     //! The background service that publishes the complications. Returning it here is what
     //! lets the system run onTemporalEvent() when the app is closed.
     public function getServiceDelegate() as [System.ServiceDelegate] {
-        return [new $.ClaudeUsageServiceDelegate()];
-    }
-
-    //! Register the two background events that keep the complications current:
-    //!
-    //!  - the phone-message event (API 3.2+), so a push wakes the background service,
-    //!    which stores it and publishes immediately - see ClaudeUsageServiceDelegate;
-    //!  - the 5-minute temporal event (the platform minimum) as the periodic republish.
-    //!
-    //! Both registrations persist once made, but a sideload of a new .prg clears them, so
-    //! the app (or its glance) must run once after install for this to take effect.
-    //! Re-registering on every launch is harmless; the InvalidBackgroundTime case only
-    //! happens if a prior event ran too recently and is safe to skip.
-    private function registerComplicationPublishing() as Void {
-        if (!(Toybox has :Background)) {
-            return;
-        }
-        if (Background has :registerForPhoneAppMessageEvent) {
-            Background.registerForPhoneAppMessageEvent();
-        }
-        try {
-            Background.registerForTemporalEvent(new Time.Duration(5 * 60));
-        } catch (e instanceof Background.InvalidBackgroundTimeException) {
-            // Too soon since the last event - it will fire on the already-scheduled slot.
-        }
+        return [new $.UsageServiceDelegate()];
     }
 
     public function getInitialView() as [Views] or [Views, InputDelegates] {
-        return [new $.ClaudeUsageView()];
+        return UsagePages.initialView(PAGES, _startPage);
     }
 
     //! The glance carousel entry. This is the screen that justifies the whole app - usage

@@ -2,6 +2,7 @@ package com.usage.claudewidget.orca
 
 import com.usage.claudewidget.data.OrcaAccountsParser
 import com.usage.claudewidget.data.Provider
+import com.usage.claudewidget.data.WatchSnapshot
 import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
 import org.junit.Assert.assertTrue
@@ -42,7 +43,7 @@ class OrcaLiveTest {
         Provider.entries.forEach { provider ->
             println(OrcaAccountsParser.summarize(accounts.usage.getValue(provider)))
         }
-        println("watch: ${accounts.claudeWatch}")
+        println("watch: ${WatchSnapshot.from(accounts.usage)}")
 
         // The raw windows behind those rows, to check the mapping against what Orca sent.
         // Only window fields and status: the blocks' metadata can name credential sources.
