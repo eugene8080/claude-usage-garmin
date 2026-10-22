@@ -1,14 +1,16 @@
 # garmin/shared
 
-Updated: 2026-09-29
+Updated: 2026-10-22
 
 Files used by more than one Garmin project, kept here once instead of copied into each.
 A project pulls them in through its `monkey.jungle` by relative path — nothing is duplicated.
 
 | Path | What | Used by |
 | --- | --- | --- |
-| `resources-round-454x454/` | Launcher icon, 454 px family (fēnix 8 47 mm / tactix 8, fēnix 8 Pro 47 mm) | watch app, Claude Grid, Claude Terminal |
-| `resources-round-416x416/` | Launcher icon, 416 px family (fēnix 8 43 mm) | watch app, Claude Grid, Claude Terminal |
+| `resources-round-454x454/` | Launcher icon, 454 px family (fēnix 8 47 mm / tactix 8, fēnix 8 Pro 47 mm) | both watch apps, Claude Grid, Claude Terminal |
+| `resources-round-416x416/` | Launcher icon, 416 px family (fēnix 8 43 mm) | both watch apps, Claude Grid, Claude Terminal |
+| `source-usage/` | The watch apps' common code: `Snapshot` (the phone message's keys and groups, storage, reset formatting), `UsagePages` (the Claude / Codex / Cursor pages in a `ViewLoop`), `UsageApp` (start-up, launch page), `UsagePublish` (one complication write), the background service, `Version`, and `UsageTests` (`(:test)` only) | watch app, Codex + Cursor app |
+| `resources-usage/` | The complication icon | watch app, Codex + Cursor app |
 | `resources-mesh/` | `MeshTile` — the full-face VFD mesh overlay | Claude Grid, Claude Terminal |
 | `source-weather/` | `WeatherNow` — the weather reading the faces show, falling back to the stored hourly forecast (marked "~") once the phone has been away long enough for the observation to go stale; `WeatherNow.isNight()` picks the sun or moon icon from the watch's own sunrise / sunset complications (no Positioning permission needed); `HkoService` / `Hko` — the Hong Kong Observatory background fetch (station readings, icon, warnings) that `WeatherNow` reads first; `HkoStations` / `HkoNames` — the generated station table | Claude Grid, Claude Terminal |
 | `resources-hko/` | HKO station names and the `HkoStation` property + setting (generated) | Claude Grid, Claude Terminal |
@@ -27,7 +29,7 @@ base.resourcePath = resources;../../shared/resources-mesh
 fenix847mm.resourcePath = $(base.resourcePath);../../shared/resources-round-454x454
 ```
 
-(`garmin/watch-app/` is one level shallower, so it uses `../shared/`.)
+(`garmin/watch-app/` and `garmin/feed-app/` are one level shallower, so they use `../shared/`.)
 
 Source folders go on the source path the same way: `base.sourcePath = source;../../shared/source-weather`.
 

@@ -22,10 +22,9 @@ import kotlin.math.roundToInt
  */
 object OrcaAccountsParser {
 
+    /** The watch's numbers are cut from [usage] by [WatchSnapshot.from], after the repository merges in the last good meters. */
     class Parsed(
         val usage: Map<Provider, ProviderUsage>,
-        /** Claude's numbers for the watch; null when Orca has no Claude 5H or 1W window. */
-        val claudeWatch: UsageSnapshot?,
     )
 
     /**
@@ -39,7 +38,7 @@ object OrcaAccountsParser {
         val usage = Provider.entries.associateWith { provider ->
             providerUsage(provider, rateLimits.optJSONObject(provider.orcaKey))
         }
-        return Parsed(usage, claudeWatchSnapshot(rateLimits.optJSONObject(Provider.CLAUDE.orcaKey)))
+        return Parsed(usage)
     }
 
     private fun providerUsage(provider: Provider, block: JSONObject?): ProviderUsage {
@@ -92,31 +91,8 @@ object OrcaAccountsParser {
         return meters
     }
 
-    /**
-     * Claude for the watch: 5H and 1W are always sent (garmin/CONTRACT.md), so a missing one
-     * goes as 0 % with no reset, as the claude.ai reader did; with neither there is nothing
-     * worth sending.
-     */
-    private fun claudeWatchSnapshot(block: JSONObject?): UsageSnapshot? {
-        if (block == null) return null
-        val session = window(block.optJSONObject("session"))
-        val weekly = window(block.optJSONObject("weekly"))
-        if (session == null && weekly == null) return null
-        val fable = window(block.optJSONObject("fableWeekly"))?.let {
-            val resetsAt = if (it.resetsAtEpochMs != 0L) it.resetsAtEpochMs else weekly?.resetsAtEpochMs ?: 0L
-            ModelWindow("Fable", Window(it.utilization, resetsAt))
-        }
-        return UsageSnapshot(
-            fiveHour = session?.toWindow() ?: Window(0f, 0L),
-            sevenDay = weekly?.toWindow() ?: Window(0f, 0L),
-            modelWeekly = fable,
-            fetchedAtEpochMs = block.optLong("updatedAt", 0L),
-        )
-    }
-
     private class ParsedWindow(val utilization: Float, val windowMinutes: Int, val resetsAtEpochMs: Long) {
         fun toMeter(label: String, key: String) = Meter(label, utilization, resetsAtEpochMs, key)
-        fun toWindow() = Window(utilization, resetsAtEpochMs)
 
         /** "5H" / "1W" / "1M" / "3D" from the window's length; null when Orca gave none. */
         fun label(): String? = when {
@@ -148,8 +124,8 @@ object OrcaAccountsParser {
      * (Orca's cursor-usage-mapping.ts: autoPercentUsed / apiPercentUsed).
      */
     private fun bucketLabel(name: String): String = when (name) {
-        "Cursor Models" -> "Auto"
-        "Other Models" -> "API"
+        Meter.CURSOR_AUTO_POOL -> "Auto"
+        Meter.CURSOR_API_POOL -> "API"
         "On-demand" -> "On-dem"
         else -> name.take(8).ifBlank { "Pool" }
     }

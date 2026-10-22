@@ -2,7 +2,6 @@ package com.usage.claudewidget.data
 
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -57,17 +56,6 @@ class OrcaAccountsParserTest {
         assertEquals(1793500000000L, cursor.meters[0].resetsAtEpochMs)
     }
 
-    @Test fun `the watch snapshot is Claude's, stamped with Orca's fetch time`() {
-        val watch = OrcaAccountsParser.parse(fixture()).claudeWatch
-        assertNotNull(watch)
-        watch!!
-        assertEquals(12.4f, watch.fiveHour.utilization, 0.001f)
-        assertEquals(40.6f, watch.sevenDay.utilization, 0.001f)
-        assertEquals("Fable", watch.modelWeekly?.modelName)
-        assertEquals(1792656000000L, watch.modelWeekly?.window?.resetsAtEpochMs)
-        assertEquals(1792300000000L, watch.fetchedAtEpochMs)
-    }
-
     @Test fun `a provider Orca has no block for is not set up`() {
         val snapshot = fixture()
         snapshot.getJSONObject("rateLimits").put("cursor", JSONObject.NULL)
@@ -93,7 +81,7 @@ class OrcaAccountsParserTest {
         assertEquals(ProviderStatus.UNAVAILABLE, claude.status)
         assertEquals("Claude Code is not signed in", claude.error)
         assertTrue(claude.meters.isEmpty())
-        assertNull(parsed.claudeWatch)
+        assertNull(WatchSnapshot.from(parsed.usage).claude)
     }
 
     @Test(expected = IllegalArgumentException::class)

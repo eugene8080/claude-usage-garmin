@@ -6,11 +6,11 @@
       readable from the glance carousel without launching anything.
 
       minApiLevel is 4.2.0: that is the floor for the Complications resource attributes used
-      below (publishing the three meters as watchface complications). GlanceView needs only
+      below (publishing four meters as watchface complications). GlanceView needs only
       3.3, but every target is a fenix 8 class device on CIQ 6.x, so 4.2 costs no real
       coverage. The app itself never talks to claude.ai: Cloudflare's cf_clearance can only
       be minted in a real browser engine, and a Claude sessionKey has no business living in
-      unencrypted watch storage. The phone authenticates and pushes three numbers over BLE;
+      unencrypted watch storage. The phone reads usage from desktop Orca and pushes the numbers over BLE;
       this app only renders whatever it was last told.
     -->
     <iq:application
@@ -30,7 +30,7 @@
         <iq:permissions>
             <!-- Only to receive messages from the companion app. No web requests are made. -->
             <iq:uses-permission id="Communications"/>
-            <!-- Publish the three meters as watchface complications. -->
+            <!-- Publish four meters (Claude's three, Cursor API) as watchface complications. -->
             <iq:uses-permission id="ComplicationPublisher"/>
             <!-- A device app can only publish complications from a background service (a
                  foreground updateComplication faults), so the publish runs on a ~5-min

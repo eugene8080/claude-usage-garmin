@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<iq:manifest xmlns:iq="http://www.garmin.com/xml/connectiq" version="3">
+    <!--
+      "Codex + Cursor": the companion of the Claude Usage watch app (../watch-app/). It exists
+      because Connect IQ lets one app publish at most four complications and Claude Usage's are
+      full; this app publishes four more (Codex 5H and 1W, Cursor plan and Auto) from the same
+      phone push. Opening it shows the Codex and Cursor pages.
+
+      Like Claude Usage, it never talks to a provider: the phone pushes the numbers over BLE.
+      The id is the phone's FEED_APP_ID (garmin/CONTRACT.md). minApiLevel 4.2.0 for the
+      Complications resource attributes; same targets as the watch app, which the faces need.
+    -->
+    <iq:application
+        entry="CodexCursorApp"
+        id="43bb7ac1ca954af9a00dfff271303aee"
+        launcherIcon="@Drawables.LauncherIcon"
+        minApiLevel="4.2.0"
+        name="@Strings.AppName"
+        type="watch-app">
+
+        <iq:products>
+            <iq:product id="fenix843mm"/>
+            <iq:product id="fenix847mm"/>
+            <iq:product id="fenix8pro47mm"/>
+        </iq:products>
+
+        <iq:permissions>
+            <!-- Only to receive messages from the companion app. No web requests are made. -->
+            <iq:uses-permission id="Communications"/>
+            <!-- Publish the four meters as watchface complications. -->
+            <iq:uses-permission id="ComplicationPublisher"/>
+            <!-- A device app can only publish complications from a background service (a
+                 foreground updateComplication faults). -->
+            <iq:uses-permission id="Background"/>
+        </iq:permissions>
+
+        <iq:languages>
+            <iq:language>eng</iq:language>
+        </iq:languages>
+    </iq:application>
+</iq:manifest>

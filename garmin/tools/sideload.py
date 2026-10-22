@@ -2,12 +2,13 @@
 
     python garmin/tools/sideload.py grid                 # newest Claude Grid build
     python garmin/tools/sideload.py terminal app         # several, in order
+    python garmin/tools/sideload.py app feed             # both watch apps (Claude Usage, Codex + Cursor)
     python garmin/tools/sideload.py path/to/Some.prg     # an explicit file (e.g. a dist/variants/ build)
     python garmin/tools/sideload.py --list               # what each name would pick, and how old it is
     python garmin/tools/sideload.py grid --dry-run       # resolve + find the watch, copy nothing
 
-NAMES are the project folders: `watch-app` (alias `app`) and every `garmin/faces/<name>/` - a new
-face is picked up automatically. For a name, the newest top-level .prg in the project's dist/ or
+NAMES are the project folders: `watch-app` (alias `app`), `feed-app` (alias `feed`, the Codex +
+Cursor app) and every `garmin/faces/<name>/` - a new face is picked up automatically. For a name, the newest top-level .prg in the project's dist/ or
 build/ is used, keeping only builds for PRODUCT (the Connect IQ device id in the file name, e.g.
 ClaudeGrid-fenix847mm.prg; a name with no device suffix, like ClaudeUsage.prg, is assumed to be
 for PRODUCT). dist/variants/ is ignored: those are separate test apps - pass their path explicitly.
@@ -64,7 +65,9 @@ HERE = Path(__file__).resolve().parent
 DEFAULT_GARMIN = HERE.parent                   # garmin/
 DEFAULT_DEVICE = "tactix 8 - 51mm"             # the watch's name under This PC in File Explorer
 DEFAULT_PRODUCT = "fenix847mm"                 # its Connect IQ device id (fenix 8 / tactix 8 47 & 51 mm)
-ALIASES = {"app": "watch-app"}
+ALIASES = {"app": "watch-app", "feed": "feed-app"}
+# The watch apps, in the order --list shows them; the faces follow.
+APP_FOLDERS = ("watch-app", "feed-app")
 IQ_NS = "{http://www.garmin.com/xml/connectiq}"
 SSF_DRIVES = 0x11                              # Shell.Application namespace id of "This PC"
 # IFileOperation flags. FOF_NOCONFIRMATION answers "Yes to All" to any prompt, so an existing copy
@@ -82,10 +85,11 @@ class SideloadError(Exception):
 # ---- choosing the file ----------------------------------------------------------------------
 
 def projects(garmin: Path) -> dict[str, Path]:
-    """Project name -> folder: the watch app plus every face that has a manifest."""
+    """Project name -> folder: the watch apps plus every face that has a manifest."""
     found: dict[str, Path] = {}
-    if (garmin / "watch-app" / "manifest.xml").is_file():
-        found["watch-app"] = garmin / "watch-app"
+    for app in APP_FOLDERS:
+        if (garmin / app / "manifest.xml").is_file():
+            found[app] = garmin / app
     for manifest in sorted((garmin / "faces").glob("*/manifest.xml")):
         found[manifest.parent.name] = manifest.parent
     return found
@@ -165,7 +169,8 @@ def resolve(targets: list[str], garmin: Path, product: str) -> list[Candidate]:
 def print_list(garmin: Path, product: str) -> None:
     for name, folder in projects(garmin).items():
         found = candidates(folder, product)
-        label = name + (" (app)" if name == "watch-app" else "")
+        alias = next((a for a, folder_name in ALIASES.items() if folder_name == name), None)
+        label = name + (" (%s)" % alias if alias else "")
         if not found:
             log.info("%-18s no %s build in dist/ or build/", label, product)
             continue
@@ -354,7 +359,7 @@ def copy_and_confirm(shell: Any, device: str, prg: Path, timeout: int) -> bool:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("targets", nargs="*", help="project names (watch-app/app, grid, terminal, ...) or .prg paths")
+    ap.add_argument("targets", nargs="*", help="project names (watch-app/app, feed-app/feed, grid, terminal, ...) or .prg paths")
     ap.add_argument("--list", action="store_true", help="show the builds each name would pick, then exit")
     ap.add_argument("--dry-run", action="store_true", help="resolve files and find the watch, copy nothing")
     ap.add_argument("--device", default=DEFAULT_DEVICE, help="watch name under This PC (default %(default)r)")

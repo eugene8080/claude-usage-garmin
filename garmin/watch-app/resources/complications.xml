@@ -1,8 +1,10 @@
 <complications>
     <!--
-      Three publishable complications, one per meter, so a watchface can place any of them.
+      Four publishable complications, one per meter, so a watchface can place any of them:
+      Claude's three, and Cursor's API pool. Four is Connect IQ's limit per app (the compiler
+      refuses a fifth), so the other Codex and Cursor meters are in garmin/feed-app/.
       Public access: usable by any watchface, including Garmin's Face It. The numeric ids are
-      the handle updateComplication() writes to (see Complications.mc) and MUST stay stable
+      the handle updateComplication() writes to (see Publisher.mc) and MUST stay stable
       across versions - changing one silently breaks a face already configured to show it.
 
       value/shortLabel/unit are set at runtime from the pushed snapshot; the ranges give a
@@ -27,6 +29,13 @@
         longLabel="@Strings.compModelLong" shortLabel="@Strings.compModelShort"
         icon="@Drawables.ComplicationIcon">
         <faceIt defaultText="@Strings.compModelFace" />
+        <range><value>0</value><value>50</value><value>80</value><value>100</value></range>
+    </complication>
+
+    <complication id="3" access="public"
+        longLabel="@Strings.compCursorApiLong" shortLabel="@Strings.compCursorApiShort"
+        icon="@Drawables.ComplicationIcon">
+        <faceIt defaultText="@Strings.compCursorApiFace" />
         <range><value>0</value><value>50</value><value>80</value><value>100</value></range>
     </complication>
 </complications>

@@ -164,14 +164,15 @@ private fun SetupScreen() {
                 val usage = Provider.entries.joinToString("\n") { provider ->
                     r.usage[provider]?.let(OrcaAccountsParser::summarize) ?: "${provider.displayName}: -"
                 }
-                val claude = r.claudeWatch
-                if (claude == null) {
-                    debug = "$usage\nWatch: no Claude numbers to send"
+                val watch = r.watch
+                if (watch.isEmpty) {
+                    debug = "$usage\nWatch: no numbers to send"
                 } else {
-                    // The push can take up to ~35 s (one attempt, a 5 s pause, one retry), so
-                    // say what is happening rather than look frozen.
+                    // The push can take up to ~45 s (one attempt, a 5 s pause, one retry,
+                    // then the Codex + Cursor app), so say what is happening rather than look
+                    // frozen.
                     debug = "$usage\nWatch: sending…"
-                    val push = WatchBridge.push(context, claude)
+                    val push = WatchBridge.push(context, watch)
                     debug = "$usage\nWatch: ${WatchBridge.describe(push)}"
                 }
             }

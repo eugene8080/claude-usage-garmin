@@ -3,16 +3,18 @@ import Toybox.Communications;
 import Toybox.Lang;
 import Toybox.System;
 
-//! Background entry point. A device app may only publish complications from here - doing it
-//! from the foreground faults - so the three meters reach the complication framework from
-//! two background events the main app registers:
+//! Background entry point, shared by both watch apps. A device app may only publish
+//! complications from here - doing it from the foreground faults - so the meters reach the
+//! complication framework from two background events the app registers (UsageApp):
 //!
 //!  - onPhoneAppMessage: the phone just pushed a snapshot. Store it and publish at once, so a
 //!    watch face shows the new numbers within seconds of the push, whether or not the glance
 //!    or the app is open.
 //!  - onTemporalEvent: every 5 minutes (Connect IQ's floor), republish whatever is stored.
-//!    A safety net for a missed message, and what keeps the model slot's "reset" countdown
-//!    and a no-data state current.
+//!    A safety net for a missed message, and what keeps a no-data state current.
+//!
+//! `Publisher` is each app's own module (its complication ids differ); the build of each app
+//! compiles exactly one of them.
 //!
 //! Before the message event existed, a push only reached Storage through the FOREGROUND
 //! registerForPhoneAppMessages callback, so it waited in the message queue until the glance
@@ -22,7 +24,7 @@ import Toybox.System;
 //! Everything it touches is annotated (:background) so it is compiled into the background
 //! memory image.
 (:background)
-class ClaudeUsageServiceDelegate extends System.ServiceDelegate {
+class UsageServiceDelegate extends System.ServiceDelegate {
 
     public function initialize() {
         ServiceDelegate.initialize();
