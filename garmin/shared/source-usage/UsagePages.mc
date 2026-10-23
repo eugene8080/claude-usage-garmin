@@ -89,8 +89,8 @@ class UsagePageView extends WatchUi.View {
             return;
         }
 
-        // Rows are spaced off the display height rather than fixed pixels, because the
-        // supported devices span 416x416 to 454x454. Only the windows the phone sent are
+        // Rows are spaced off the display height rather than fixed pixels, so a target with
+        // another screen size needs no layout change. Only the windows the phone sent are
         // drawn, top-down, so a missing one (Codex's 5-hour window, say) leaves no hole.
         var rowH = h * 0.17;
         var y = h * 0.24;

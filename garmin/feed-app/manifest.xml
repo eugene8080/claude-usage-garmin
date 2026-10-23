@@ -19,9 +19,7 @@
         type="watch-app">
 
         <iq:products>
-            <iq:product id="fenix843mm"/>
             <iq:product id="fenix847mm"/>
-            <iq:product id="fenix8pro47mm"/>
         </iq:products>
 
         <iq:permissions>

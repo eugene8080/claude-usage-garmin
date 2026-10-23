@@ -9,5 +9,3 @@ base.resourcePath = resources;../shared/resources-usage
 
 # Per-family launcher icons (size-specific), shared by all the Garmin apps.
 fenix847mm.resourcePath = $(base.resourcePath);../shared/resources-round-454x454
-fenix8pro47mm.resourcePath = $(base.resourcePath);../shared/resources-round-454x454
-fenix843mm.resourcePath = $(base.resourcePath);../shared/resources-round-416x416

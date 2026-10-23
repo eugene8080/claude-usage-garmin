@@ -1,14 +1,13 @@
 # garmin/shared
 
-Updated: 2026-10-22
+Updated: 2026-10-23
 
 Files used by more than one Garmin project, kept here once instead of copied into each.
 A project pulls them in through its `monkey.jungle` by relative path — nothing is duplicated.
 
 | Path | What | Used by |
 | --- | --- | --- |
-| `resources-round-454x454/` | Launcher icon, 454 px family (fēnix 8 47 mm / tactix 8, fēnix 8 Pro 47 mm) | both watch apps, Claude Grid, Claude Terminal |
-| `resources-round-416x416/` | Launcher icon, 416 px family (fēnix 8 43 mm) | both watch apps, Claude Grid, Claude Terminal |
+| `resources-round-454x454/` | Launcher icon, 454 px (`fenix847mm`: fēnix 8 / tactix 8 47 and 51 mm, the only target) | both watch apps, Claude Grid, Claude Terminal |
 | `source-usage/` | The watch apps' common code: `Snapshot` (the phone message's keys and groups, storage, reset formatting), `UsagePages` (the Claude / Codex / Cursor pages in a `ViewLoop`), `UsageApp` (start-up, launch page), `UsagePublish` (one complication write), the background service, `Version`, and `UsageTests` (`(:test)` only) | watch app, Codex + Cursor app |
 | `resources-usage/` | The complication icon | watch app, Codex + Cursor app |
 | `resources-mesh/` | `MeshTile` — the full-face VFD mesh overlay | Claude Grid, Claude Terminal |

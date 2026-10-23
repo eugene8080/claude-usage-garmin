@@ -81,7 +81,7 @@ If a watch send is still stopped by the phone later, the prompt comes back and t
 
 ## ⌚ On your Garmin watch
 
-<sub>Updated: 2026-10-22 · Built and tested on a tactix 8 (the `fenix847mm` Connect IQ profile); also builds for fēnix 8 43 mm and fēnix 8 Pro 47 mm (the Solar models are not targeted).</sub>
+<sub>Updated: 2026-10-23 · Built and tested on a tactix 8. The only target is the `fenix847mm` Connect IQ profile (fēnix 8 / tactix 8 / quatix 8, 47 and 51 mm AMOLED); the fēnix 8 43 mm, Pro and Solar models are not built.</sub>
 
 Four Connect IQ projects, all under [`garmin/`](garmin/), put the same usage numbers on a fēnix 8 / tactix 8 class watch:
 

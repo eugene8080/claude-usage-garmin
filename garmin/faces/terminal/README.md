@@ -32,7 +32,7 @@ All four settings are also on the watch (hold the face > Settings, `ClaudeFaceSe
 including the prompt text via the watch's text entry (`WatchUi.TextPicker`) - the only way to set
 them on a sideloaded face, since Garmin Connect edits settings only for store installs.
 
-Updated: 2026-09-25
+Updated: 2026-10-23
 
 ## Where the data comes from
 
@@ -78,9 +78,10 @@ and the watch-app opened once so its 5-minute background publish is registered.
   band is capped at the first meter row. Inside the clip it blanks the band and redraws the
   prompt, time and date in full-update order, so a descender or a line box that crosses the band
   is never cut off or double-drawn.
-- **Targets.** fenix 8 47mm / 51mm (= tactix 8), fenix 8 Pro 47mm and fenix 8 43mm - all AMOLED.
-  The fonts are fixed pixel sizes laid out for the 454 px tactix 8; the 416 px 43mm fits too.
-  The fenix 8 Solar models were dropped (not needed; their MIP screens can't show the glow).
+- **Targets.** fenix 8 47mm / 51mm (= tactix 8, AMOLED) only - `fenix847mm`. The fonts are
+  fixed pixel sizes laid out for its 454 px screen. The fenix 8 43mm and Pro 47mm were dropped
+  on 2026-10-23 (not needed). The fenix 8 Solar models were dropped earlier (not needed; their
+  MIP screens can't show the glow).
 
 ## Fonts
 

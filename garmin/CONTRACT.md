@@ -1,6 +1,6 @@
 # Phone ↔ watch apps ↔ face contract
 
-Updated: 2026-10-22
+Updated: 2026-10-23
 
 The Android app, the two Connect IQ watch apps and the watch faces are built separately, and no
 compiler sees across them. Every value they must agree on is listed here — the app ids, message
@@ -147,8 +147,9 @@ applies these rules to the labels in each app's `strings.xml` and confirms each 
 - Every face must declare `ComplicationSubscriber`; both watch apps declare
   `ComplicationPublisher`, `Communications` and `Background`.
 - Both watch apps target the same devices, and a face must only target those — elsewhere there is
-  nothing to subscribe to. Today all four apps target `fenix847mm`, `fenix8pro47mm` and
-  `fenix843mm`.
+  nothing to subscribe to. Today all four apps target only `fenix847mm` (fēnix 8 / tactix 8,
+  47 and 51 mm). `fenix843mm` and `fenix8pro47mm` were dropped on 2026-10-23, the Solar
+  models on 2026-09-25.
 - Each app publishes at most four complications (Connect IQ's limit; the checker repeats it).
 
 ## Adding a new face
