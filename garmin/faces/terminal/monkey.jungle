@@ -16,7 +16,5 @@ base.sourcePath = source;source-glow;../../shared/source-weather
 base.resourcePath = resources;resources-glow;../../shared/resources-mesh;resources-scanlines;../../shared/resources-hko
 base.excludeAnnotations = font_time;plain_overlay
 
-# Per-family launcher icons (size-specific), shared by all three Garmin apps.
+# Per-family launcher icons (size-specific), shared by all the Garmin apps.
 fenix847mm.resourcePath = $(base.resourcePath);../../shared/resources-round-454x454
-fenix8pro47mm.resourcePath = $(base.resourcePath);../../shared/resources-round-454x454
-fenix843mm.resourcePath = $(base.resourcePath);../../shared/resources-round-416x416
