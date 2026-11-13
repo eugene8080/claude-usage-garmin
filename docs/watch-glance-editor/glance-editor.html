@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Watch glance and logo editor</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Generated: 2026-11-13. Self-contained: no external requests. Draft for the tactix 8 glance
+     (all text, no bars, no version) and a new three-way logo. Edit, then press "Copy settings". -->
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #101114; color: #e8e8e8; font: 14px/1.4 system-ui, Segoe UI, sans-serif; }
+  header { padding: 14px 20px; border-bottom: 1px solid #2a2c31; }
+  header h1 { margin: 0; font-size: 18px; font-weight: 600; }
+  header p { margin: 4px 0 0; color: #9aa0a6; }
+  main { display: grid; grid-template-columns: 380px 1fr; gap: 20px; padding: 20px; max-width: 1300px; }
+  section { background: #17181c; border: 1px solid #2a2c31; border-radius: 10px; padding: 14px 16px; margin-bottom: 18px; }
+  h2 { margin: 0 0 10px; font-size: 15px; }
+  label { display: block; margin: 8px 0 2px; color: #b8bcc2; font-size: 12px; }
+  input[type=range] { width: 100%; }
+  input[type=number], input[type=text], select, textarea { width: 100%; box-sizing: border-box; background: #0e0f12; color: #e8e8e8; border: 1px solid #343741; border-radius: 6px; padding: 5px 7px; font: inherit; }
+  textarea { font-family: Consolas, monospace; font-size: 13px; min-height: 96px; }
+  .row { display: flex; gap: 8px; } .row > * { flex: 1; }
+  button { background: #2b3350; color: #dfe5ff; border: 1px solid #45507c; border-radius: 6px; padding: 6px 12px; font: inherit; cursor: pointer; margin: 4px 6px 0 0; }
+  button:hover { background: #36407a; }
+  .note { color: #9aa0a6; font-size: 12px; }
+  .ok { color: #7bd88f; } .bad { color: #ff8a80; }
+  .stage { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+  .watch { position: relative; width: 454px; height: 454px; border-radius: 50%; background: #000; box-shadow: 0 0 0 10px #2a2b30, 0 0 0 12px #111; overflow: hidden; flex: none; }
+  .glance { position: absolute; background: #0a0a0a; outline: 1px dashed #3d4150; overflow: hidden; }
+  .glance .line { position: absolute; left: 0; white-space: pre; font-family: "Roboto Condensed", "Arial Narrow", "Segoe UI", sans-serif; font-weight: 700; }
+  .glance .line span.t { color: #b9b9b9; }
+  .zoom { transform-origin: top left; }
+  .logos { display: flex; gap: 20px; flex-wrap: wrap; align-items: center; }
+  .logos svg { background: var(--bg, #000); border-radius: 12px; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 6px; }
+  .sw { display: inline-block; width: 11px; height: 11px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+  pre { background: #0e0f12; border: 1px solid #2a2c31; border-radius: 6px; padding: 8px; overflow: auto; max-height: 220px; font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Watch glance and logo editor</h1>
+  <p>Draft for review, 2026-11-13. Left: settings. Right: the glance on a 454 px tactix 8 screen, then the logo. Nothing here is wired to the watch app yet.</p>
+</header>
+<main>
+<div>
+  <section>
+    <h2>Glance size (device pixels)</h2>
+    <p class="note">347 x 142 is an estimate from the simulator's glance area, not a measured value. Edit it if the watch differs.</p>
+    <div class="row">
+      <div><label>Width</label><input type="number" id="gw" value="347" min="120" max="454"></div>
+      <div><label>Height</label><input type="number" id="gh" value="142" min="40" max="300"></div>
+      <div><label>Left offset</label><input type="number" id="gx" value="60" min="0" max="300"></div>
+    </div>
+    <label>Left / right padding: <b id="padv"></b> px</label><input type="range" id="pad" min="0" max="60" value="14">
+    <label>Top padding: <b id="topv"></b> px</label><input type="range" id="top" min="0" max="50" value="8">
+  </section>
+
+  <section>
+    <h2>Text</h2>
+    <label>Preset</label>
+    <select id="preset"></select>
+    <label>Lines (one glance line each; tokens in braces are filled and coloured)</label>
+    <textarea id="lines" spellcheck="false"></textarea>
+    <p class="note">Tokens: {c5} {c1w} {cm} (Claude 5H, 1W, model cap) &middot; {x5} {x1w} (Codex) &middot; {up} {ua} {uapi} (Cursor plan, Auto, API) &middot; {cmn} model name &middot; add a % inside the braces, e.g. {c5%}, to print the % sign. A blank value shows as a dash.</p>
+    <div class="row">
+      <div><label>Font size: <b id="fsv"></b> px</label><input type="range" id="fs" min="12" max="60" value="30"></div>
+      <div><label>Line spacing: <b id="lsv"></b>%</label><input type="range" id="ls" min="80" max="160" value="105"></div>
+    </div>
+    <div class="row">
+      <div><label>Align</label><select id="align"><option>left</option><option>center</option><option>right</option></select></div>
+      <div><label>Font</label><select id="font"><option value='"Roboto Condensed","Arial Narrow",sans-serif'>Roboto Condensed Bold (watch vector font)</option><option value='"Segoe UI",sans-serif'>Segoe UI</option><option value='Consolas,monospace'>Monospace</option></select></div>
+    </div>
+    <button id="fit">Fit font to the glance</button>
+    <p id="fitmsg" class="note"></p>
+  </section>
+
+  <section>
+    <h2>Sample numbers (% used)</h2>
+    <div class="row">
+      <div><label>Claude 5H</label><input type="number" id="v_c5" value="1"></div>
+      <div><label>Claude 1W</label><input type="number" id="v_c1w" value="15"></div>
+      <div><label>Model cap</label><input type="number" id="v_cm" value="0"></div>
+    </div>
+    <div class="row">
+      <div><label>Codex 5H</label><input type="number" id="v_x5" placeholder="none"></div>
+      <div><label>Codex 1W</label><input type="number" id="v_x1w" value="0"></div>
+      <div><label>Model name</label><input type="text" id="v_cmn" value="Fable"></div>
+    </div>
+    <div class="row">
+      <div><label>Cursor plan</label><input type="number" id="v_up" value="14"></div>
+      <div><label>Cursor Auto</label><input type="number" id="v_ua" value="14"></div>
+      <div><label>Cursor API</label><input type="number" id="v_uapi" value="0"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Colours</h2>
+    <div class="row">
+      <div><label>Claude</label><input type="text" id="col_c" value="#E8896B"></div>
+      <div><label>Codex</label><input type="text" id="col_x" value="#8CA0FF"></div>
+      <div><label>Cursor</label><input type="text" id="col_u" value="#EDEDED"></div>
+    </div>
+    <label>Label / punctuation</label><input type="text" id="col_t" value="#B9B9B9">
+    <label>Colour numbers by how full they are</label>
+    <select id="heat"><option value="off">Off: provider colour</option><option value="on">On: amber over 70%, red over 90%</option></select>
+  </section>
+
+  <section>
+    <h2>Settings to hand back</h2>
+    <button id="copy">Copy settings</button>
+    <button id="apply">Apply pasted</button>
+    <pre id="json"></pre>
+    <textarea id="paste" placeholder="Paste settings JSON here, then Apply pasted" style="min-height:50px"></textarea>
+  </section>
+</div>
+
+<div>
+  <section>
+    <h2>Glance preview</h2>
+    <div class="stage">
+      <div>
+        <div class="watch" id="watch"><div class="glance" id="glance"></div></div>
+        <p class="note">Round bezel clips the glance's top corners on the real watch; check the first line's ends.</p>
+      </div>
+      <div style="flex:1; min-width:260px">
+        <p id="status" class="note"></p>
+        <div class="legend" id="legend"></div>
+        <p class="note">The real glance is a short band in the glance carousel, so a taller block of text pushes into the next glance. Height is the binding limit: lines x font x spacing must fit.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>New logo: Claude, Codex and Cursor, one third each</h2>
+    <p class="note">Each mark is centred on the same point and shown only in its own 120 degree wedge. Simplified redraws for a draft, not the vendors' official artwork.</p>
+    <div class="row" style="max-width:640px">
+      <div><label>Rotate: <b id="rotv"></b>&deg;</label><input type="range" id="rot" min="0" max="119" value="0"></div>
+      <div><label>Mark size: <b id="msv"></b>%</label><input type="range" id="ms" min="50" max="140" value="100"></div>
+      <div><label>Gap between wedges: <b id="gapv"></b></label><input type="range" id="gap" min="0" max="8" value="2"></div>
+    </div>
+    <div class="row" style="max-width:640px">
+      <div><label>Shape</label><select id="shape"><option value="circle">Circle</option><option value="squircle">Rounded square (launcher)</option></select></div>
+      <div><label>Order, clockwise from top</label><select id="order"><option>Claude, Codex, Cursor</option><option>Claude, Cursor, Codex</option></select></div>
+    </div>
+    <div class="logos" style="margin-top:12px">
+      <div id="logoBig"></div>
+      <div id="logoSmall"></div>
+    </div>
+    <button id="dl">Download logo SVG</button>
+  </section>
+</div>
+</main>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const PRESETS = {
+  "Two rows of three (current layout, text only)": "5H {c5%}  1W {c1w%}  {cmn} {cm%}\nCodex 1W {x1w%}  Cursor {up%}",
+  "Three lines, one per provider, with labels": "Claude  5H {c5}  1W {c1w}  {cmn} {cm}\nCodex  5H {x5}  1W {x1w}\nCursor  Plan {up}  Auto {ua}",
+  "Three lines, numbers only": "Claude {c5} {c1w} {cm}\nCodex {x5} {x1w}\nCursor {up} {ua} {uapi}",
+  "Two lines, big": "C {c5} {c1w} {cm}\nX {x1w}  U {up}",
+  "Four lines, each meter": "5H {c5%}   1W {c1w%}\n{cmn} {cm%}   Codex {x1w%}\nCursor {up%}"
+};
+const TOKENS = { c5:"c", c1w:"c", cm:"c", cmn:"c", x5:"x", x1w:"x", up:"u", ua:"u", uapi:"u" };
+const state = {};
+
+function el(tag, attrs, text) {
+  const e = document.createElement(tag);
+  if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+function value(tok, pct) {
+  if (tok === "cmn") return $("v_cmn").value || "Model";
+  const raw = $("v_" + tok).value.trim();
+  if (raw === "" || isNaN(Number(raw))) return "–";
+  return Number(raw).toString() + (pct ? "%" : "");
+}
+
+function colourFor(tok, raw) {
+  const prov = TOKENS[tok];
+  let c = $("col_" + prov).value;
+  if ($("heat").value === "on" && tok !== "cmn") {
+    const n = Number($("v_" + tok).value);
+    if (n >= 90) c = "#FF6B5E"; else if (n >= 70) c = "#FFC233";
+  }
+  return c;
+}
+
+// One line -> list of {text, colour} runs. Plain text uses the label colour.
+function runs(line) {
+  const out = [];
+  const re = /\{([a-z0-9]+?)(%?)\}/g;
+  let last = 0, m;
+  while ((m = re.exec(line)) !== null) {
+    if (!(m[1] in TOKENS)) continue;
+    if (m.index > last) out.push({ text: line.slice(last, m.index), colour: $("col_t").value });
+    out.push({ text: value(m[1], m[2] === "%"), colour: colourFor(m[1]) });
+    last = re.lastIndex;
+  }
+  if (last < line.length) out.push({ text: line.slice(last), colour: $("col_t").value });
+  return out;
+}
+
+const measureCtx = document.createElement("canvas").getContext("2d");
+function textWidth(str, fs) {
+  measureCtx.font = "700 " + fs + "px " + $("font").value;
+  return measureCtx.measureText(str).width;
+}
+
+function layout() {
+  const gw = +$("gw").value, gh = +$("gh").value, gx = +$("gx").value;
+  const pad = +$("pad").value, top = +$("top").value, fs = +$("fs").value, ls = +$("ls").value / 100;
+  const align = $("align").value;
+  $("padv").textContent = pad; $("topv").textContent = top; $("fsv").textContent = fs; $("lsv").textContent = Math.round(ls * 100);
+
+  const g = $("glance");
+  g.style.left = gx + "px"; g.style.top = "60px"; g.style.width = gw + "px"; g.style.height = gh + "px";
+  g.textContent = "";
+  const lines = $("lines").value.split("\n").filter(l => l.trim() !== "");
+  const inner = gw - 2 * pad;
+  let widest = 0, bad = [];
+  lines.forEach((line, i) => {
+    const r = runs(line), plain = r.map(x => x.text).join("");
+    const w = textWidth(plain, fs);
+    widest = Math.max(widest, w);
+    if (w > inner) bad.push(i + 1);
+    const d = el("div", { class: "line" });
+    d.style.top = (top + i * fs * ls) + "px";
+    d.style.fontSize = fs + "px"; d.style.fontFamily = $("font").value; d.style.lineHeight = "1";
+    d.style.width = inner + "px"; d.style.left = pad + "px"; d.style.textAlign = align;
+    r.forEach(x => { const s = el("span", null, x.text); s.style.color = x.colour; d.appendChild(s); });
+    g.appendChild(d);
+  });
+  const needH = top + lines.length * fs * ls;
+  const fits = bad.length === 0 && needH <= gh;
+  $("status").innerHTML = "Widest line " + Math.round(widest) + " px of " + inner + " px; text height " + Math.round(needH) + " px of " + gh + " px. " +
+    (fits ? '<span class="ok">Fits.</span>' : '<span class="bad">' + (bad.length ? "Line " + bad.join(", ") + " too wide. " : "") + (needH > gh ? "Too tall." : "") + "</span>");
+  const lg = $("legend"); lg.textContent = "";
+  [["Claude", "col_c"], ["Codex", "col_x"], ["Cursor", "col_u"], ["Labels", "col_t"]].forEach(([n, id]) => {
+    const s = el("span"); const sw = el("span", { class: "sw" }); sw.style.background = $(id).value; s.appendChild(sw); s.appendChild(document.createTextNode(n)); lg.appendChild(s);
+  });
+  $("json").textContent = JSON.stringify(settings(), null, 2);
+}
+
+function fitFont() {
+  const gw = +$("gw").value, gh = +$("gh").value, pad = +$("pad").value, top = +$("top").value, ls = +$("ls").value / 100;
+  const lines = $("lines").value.split("\n").filter(l => l.trim() !== "");
+  let best = 12;
+  for (let fs = 12; fs <= 60; fs++) {
+    const okW = lines.every(l => textWidth(runs(l).map(x => x.text).join(""), fs) <= gw - 2 * pad);
+    const okH = top + lines.length * fs * ls <= gh;
+    if (okW && okH) best = fs; else break;
+  }
+  $("fs").value = best; $("fitmsg").textContent = "Largest font that fits: " + best + " px.";
+  layout();
+}
+
+const SETTING_IDS = ["gw","gh","gx","pad","top","lines","fs","ls","align","font","col_c","col_x","col_u","col_t","heat","v_c5","v_c1w","v_cm","v_x5","v_x1w","v_cmn","v_up","v_ua","v_uapi","rot","ms","gap","shape","order"];
+function settings() { const s = {}; SETTING_IDS.forEach(id => s[id] = $(id).value); return s; }
+
+// ---- logo -------------------------------------------------------------------------------------
+// Marks are drawn in a 200 x 200 box centred on (100,100); each is clipped to one 120-degree wedge.
+function markClaude() {
+  let g = "";
+  for (let i = 0; i < 12; i++) {
+    const a = i * 30, len = i % 2 ? 58 : 76;
+    g += '<rect x="96.5" y="' + (100 - len) + '" width="7" height="' + (len - 8) + '" rx="3.5" transform="rotate(' + a + ' 100 100)" fill="#FBF1EA"/>';
+  }
+  return g;
+}
+function markCodex() {
+  return '<path d="M52 72 L92 100 L52 128" fill="none" stroke="#0E1030" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>' +
+         '<rect x="100" y="120" width="52" height="14" rx="7" fill="#0E1030"/>';
+}
+function markCursor() {
+  return '<polygon points="100,34 157,67 157,133 100,166 43,133 43,67" fill="#14120B"/>' +
+         '<polygon points="100,34 157,67 100,100 43,67" fill="#3A3A36"/>' +
+         '<polygon points="100,100 157,67 157,133 100,166" fill="#1E1E1A"/>' +
+         '<polygon points="82,72 128,100 106,106 96,128" fill="#EDEDED"/>';
+}
+const WEDGES = {
+  Claude: { bg: "#D97757", mark: markClaude },
+  Codex:  { bg: "#8CA0FF", mark: markCodex },
+  Cursor: { bg: "#EDEDED", mark: markCursor }
+};
+
+function polar(cx, cy, r, deg) { const a = (deg - 90) * Math.PI / 180; return [cx + r * Math.cos(a), cy + r * Math.sin(a)]; }
+
+function logoSvg(size, uid) {
+  const rot = +$("rot").value, ms = +$("ms").value / 100, gap = +$("gap").value;
+  const names = $("order").value.split(", ");
+  const R = 100;
+  let defs = "", body = "";
+  // The outer shape clips everything, so the wedge edges and the outline match.
+  const outer = $("shape").value === "circle" ? '<circle cx="100" cy="100" r="98"/>' : '<rect x="3" y="3" width="194" height="194" rx="44"/>';
+  defs += '<clipPath id="o' + uid + '">' + outer + '</clipPath>';
+  names.forEach((n, i) => {
+    const a0 = rot + i * 120, a1 = a0 + 120;
+    const p0 = polar(100, 100, 400, a0), p1 = polar(100, 100, 400, a1);
+    defs += '<clipPath id="w' + uid + i + '"><path d="M100 100 L' + p0[0] + ' ' + p0[1] + ' A400 400 0 0 1 ' + p1[0] + ' ' + p1[1] + ' Z"/></clipPath>';
+    const W = WEDGES[n];
+    body += '<g clip-path="url(#w' + uid + i + ')"><rect width="200" height="200" fill="' + W.bg + '"/>' +
+            '<g transform="translate(100 100) scale(' + ms + ') translate(-100 -100)">' + W.mark() + '</g></g>';
+  });
+  // Gap lines: a dark stroke along each wedge boundary.
+  let seams = "";
+  for (let i = 0; i < 3; i++) {
+    const p = polar(100, 100, 400, rot + i * 120);
+    seams += '<line x1="100" y1="100" x2="' + p[0] + '" y2="' + p[1] + '" stroke="#0b0b0d" stroke-width="' + gap + '"/>';
+  }
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="' + size + '" height="' + size + '"><defs>' + defs + '</defs><g clip-path="url(#o' + uid + ')">' + body + seams + '</g></svg>';
+}
+
+function drawLogo() {
+  $("rotv").textContent = $("rot").value; $("msv").textContent = $("ms").value; $("gapv").textContent = $("gap").value;
+  $("logoBig").innerHTML = logoSvg(240, "a");
+  $("logoSmall").innerHTML = logoSvg(64, "b") + "&nbsp;&nbsp;" + logoSvg(40, "c");
+  $("json").textContent = JSON.stringify(settings(), null, 2);
+}
+
+// ---- wiring -----------------------------------------------------------------------------------
+Object.keys(PRESETS).forEach(k => $("preset").appendChild(el("option", null, k)));
+$("lines").value = PRESETS[$("preset").value];
+$("preset").addEventListener("change", () => { $("lines").value = PRESETS[$("preset").value]; layout(); });
+["gw","gh","gx","pad","top","lines","fs","ls","align","font","col_c","col_x","col_u","col_t","heat","v_c5","v_c1w","v_cm","v_x5","v_x1w","v_cmn","v_up","v_ua","v_uapi"]
+  .forEach(id => $(id).addEventListener("input", layout));
+["rot","ms","gap","shape","order"].forEach(id => $(id).addEventListener("input", drawLogo));
+$("fit").addEventListener("click", fitFont);
+$("copy").addEventListener("click", () => { navigator.clipboard.writeText(JSON.stringify(settings(), null, 2)); });
+$("apply").addEventListener("click", () => {
+  try { const s = JSON.parse($("paste").value); SETTING_IDS.forEach(id => { if (id in s) $(id).value = s[id]; }); layout(); drawLogo(); }
+  catch (e) { alert("That is not valid settings JSON: " + e.message); }
+});
+$("dl").addEventListener("click", () => {
+  const blob = new Blob([logoSvg(512, "d")], { type: "image/svg+xml" });
+  const a = el("a", { href: URL.createObjectURL(blob), download: "claude-codex-cursor-logo.svg" }); a.click();
+});
+fitFont(); drawLogo();
+</script>
+</body>
+</html>
