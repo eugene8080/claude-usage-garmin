@@ -1,13 +1,14 @@
 # Claude Usage - Garmin watch app
 
-A glance for fenix 8 class watches, including the **tactix 8**, in two rows: Claude's `5H`, `1W`
-and per-model weekly cap on top, then Codex `5H`, Codex `1W` and Cursor's plan below, each a
-label and % over a bar. A provider the phone sent nothing for has no cell. The glance is too
-short for five or six columns (they overlap), so it has no reset times; the full pages (open the
-app, swipe up/down) show each meter's reset as a wall-clock time the way the Claude usage menu
-states it - a clock time for the 5-hour session (`9:27p`), a weekday for the weekly caps
-(`Tue`), or a month/day once a reset is more than a week out (`Sep 22`). Honours the watch's
-12/24-hour setting.
+A glance for fenix 8 class watches, including the **tactix 8**: three lines of plain text, one
+per provider, no bars and no version - `CLA 5H1% 1W15% FA0%`, `CDX 1W 0%`, `CUR P14% A14% api 0%`
+(Claude 5-hour / weekly / model cap; Codex weekly; Cursor plan / Auto / API). A meter the phone
+sent nothing for is left out. The layout is Eugene's design from
+[`../../docs/watch-glance-editor/glance-editor.html`](../../docs/watch-glance-editor/glance-editor.html)
+(2026-11-13). Reset times are on the full pages (open the app, swipe up/down), each as a
+wall-clock time the way the Claude usage menu states it - a clock time for the 5-hour session
+(`9:27p`), a weekday for the weekly caps (`Tue`), or a month/day once a reset is more than a week
+out (`Sep 22`). Honours the watch's 12/24-hour setting.
 
 Opening the app shows **one page per provider - Claude, Codex, Cursor** - in a `ViewLoop`:
 swipe or press up/down to turn the page (it wraps), and the system draws the page dots. Each
