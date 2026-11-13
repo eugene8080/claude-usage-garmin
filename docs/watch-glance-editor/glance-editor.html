@@ -67,7 +67,7 @@
     <select id="preset"></select>
     <label>Lines (one glance line each; tokens in braces are filled and coloured)</label>
     <textarea id="lines" spellcheck="false"></textarea>
-    <p class="note">Tokens: {c5} {c1w} {cm} (Claude 5H, 1W, model cap) &middot; {x5} {x1w} (Codex) &middot; {up} {ua} {uapi} (Cursor Plan; Auto = Orca's Cursor Models; API = Orca's Other Models) &middot; {cmn} model name &middot; add a % inside the braces, e.g. {c5%}, to print the % sign. A blank value shows as a dash.</p>
+    <p class="note">Tokens: {c5} {c1w} {cm} (Claude 5H, 1W, model cap) &middot; {x1w} (Codex weekly; Orca sends no Codex 5-hour window for this account) &middot; {up} {ua} {uapi} (Cursor Plan; Auto = Orca's Cursor Models; API = Orca's Other Models) &middot; {cmn} model name &middot; add a % inside the braces, e.g. {c5%}, to print the % sign. A blank value shows as a dash.</p>
     <div class="row">
       <div><label>Font size: <b id="fsv"></b> px</label><input type="range" id="fs" min="12" max="60" value="30"></div>
       <div><label>Line spacing: <b id="lsv"></b>%</label><input type="range" id="ls" min="80" max="160" value="105"></div>
@@ -97,7 +97,6 @@
       <div><label>Model cap</label><input type="number" id="v_cm" value="0"></div>
     </div>
     <div class="row">
-      <div><label>Codex 5H</label><input type="number" id="v_x5" placeholder="none"></div>
       <div><label>Codex 1W</label><input type="number" id="v_x1w" value="0"></div>
       <div><label>Model name</label><input type="text" id="v_cmn" value="Fable"></div>
     </div>
@@ -151,7 +150,7 @@
     <div class="row" style="max-width:640px">
       <div><label>Rotate: <b id="rotv"></b>&deg;</label><input type="range" id="rot" min="0" max="119" value="0"></div>
       <div><label>Mark size: <b id="msv"></b>%</label><input type="range" id="ms" min="50" max="140" value="100"></div>
-      <div><label>Gap between wedges: <b id="gapv"></b></label><input type="range" id="gap" min="0" max="8" value="2"></div>
+      <div><label>Gap between wedges: <b id="gapv"></b></label><input type="range" id="gap" min="1" max="20" value="2"></div>
     </div>
     <div class="row" style="max-width:640px">
       <div><label>Shape</label><select id="shape"><option value="circle">Circle</option><option value="squircle">Rounded square (launcher)</option></select></div>
@@ -171,13 +170,13 @@
 "use strict";
 const $ = id => document.getElementById(id);
 const PRESETS = {
-  "Three lines, with labels (Cursor: Plan, Auto, API)": "Claude  5H {c5}  1W {c1w}  {cmn} {cm}\nCodex  5H {x5}  1W {x1w}\nCursor  Plan {up}  Auto {ua}  API {uapi}",
-  "Three lines, numbers only": "Claude {c5} {c1w} {cm}\nCodex {x5} {x1w}\nCursor {up} {ua} {uapi}",
+  "Three lines, with labels (Cursor: Plan, Auto, API)": "Claude  5H {c5}  1W {c1w}  {cmn} {cm}\nCodex  1W {x1w}\nCursor  Plan {up}  Auto {ua}  API {uapi}",
+  "Three lines, numbers only": "Claude {c5} {c1w} {cm}\nCodex {x1w}\nCursor {up} {ua} {uapi}",
   "Two rows (Claude / Codex + Cursor)": "5H {c5%}  1W {c1w%}  {cmn} {cm%}\nCodex {x1w%}  Cursor {up%} {ua%} {uapi%}",
   "Two lines, big, one letter per provider": "C {c5} {c1w} {cm}\nX {x1w}  U {up} {ua} {uapi}",
   "Four lines": "5H {c5%}   1W {c1w%}\n{cmn} {cm%}   Codex {x1w%}\nCursor {up%} {ua%} {uapi%}"
 };
-const TOKENS = { c5:"c", c1w:"c", cm:"c", cmn:"c", x5:"x", x1w:"x", up:"u", ua:"u", uapi:"u" };
+const TOKENS = { c5:"c", c1w:"c", cm:"c", cmn:"c", x1w:"x", up:"u", ua:"u", uapi:"u" };
 const state = {};
 
 function el(tag, attrs, text) {
@@ -273,7 +272,7 @@ function fitFont() {
   layout();
 }
 
-const SETTING_IDS = ["gw","gh","gx","pad","top","lines","fs","ls","align","font","weight","col_c","col_x","col_u","col_t","heat","v_c5","v_c1w","v_cm","v_x5","v_x1w","v_cmn","v_up","v_ua","v_uapi","rot","ms","gap","shape","order","marks"];
+const SETTING_IDS = ["gw","gh","gx","pad","top","lines","fs","ls","align","font","weight","col_c","col_x","col_u","col_t","heat","v_c5","v_c1w","v_cm","v_x1w","v_cmn","v_up","v_ua","v_uapi","rot","ms","gap","shape","order","marks"];
 function settings() { const s = {}; SETTING_IDS.forEach(id => s[id] = $(id).value); return s; }
 
 // ---- logo -------------------------------------------------------------------------------------
@@ -340,7 +339,7 @@ function drawLogo() {
 Object.keys(PRESETS).forEach(k => $("preset").appendChild(el("option", null, k)));
 $("lines").value = PRESETS[$("preset").value];
 $("preset").addEventListener("change", () => { $("lines").value = PRESETS[$("preset").value]; layout(); });
-["gw","gh","gx","pad","top","lines","fs","ls","align","font","weight","col_c","col_x","col_u","col_t","heat","v_c5","v_c1w","v_cm","v_x5","v_x1w","v_cmn","v_up","v_ua","v_uapi"]
+["gw","gh","gx","pad","top","lines","fs","ls","align","font","weight","col_c","col_x","col_u","col_t","heat","v_c5","v_c1w","v_cm","v_x1w","v_cmn","v_up","v_ua","v_uapi"]
   .forEach(id => $(id).addEventListener("input", layout));
 ["rot","ms","gap","shape","order","marks"].forEach(id => $(id).addEventListener("input", drawLogo));
 $("fit").addEventListener("click", fitFont);
