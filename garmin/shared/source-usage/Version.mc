@@ -10,5 +10,5 @@ import Toybox.Lang;
 //! binary. Annotated (:glance) because the glance reads it.
 (:glance :background)
 module Version {
-    const APP = "1.13";
+    const APP = "1.15";
 }
